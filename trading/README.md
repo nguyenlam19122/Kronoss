@@ -77,6 +77,14 @@ python -m trading.run_trade_backtest --csv US30_M30.csv --predictor kronos \
 > Lưu ý: bộ lọc trend/confidence chỉ **khuếch đại** một tín hiệu đã có edge; trên tín hiệu
 > vô dụng (vd baseline momentum: accuracy ~48%, IC≈0) chúng chỉ làm nhỏ mẫu, không cứu được.
 
+Đo **nhiều mã cùng lúc** (nạp model 1 lần) bằng bảng tổng hợp:
+
+```bash
+python -m trading.measure_edge_all --predictor kronos --model NeoQuasar/Kronos-small \
+  --lookback 256 --pred-len 24 --signal-every 4 \
+  --csv XAUUSD_M30.csv US30_M30.csv US500_M30.csv USTEC_M30.csv BTC_M30.csv
+```
+
 ## Chiến lược: vào lệnh / stop-loss / take-profit
 
 1. **Tín hiệu:** Kronos dự báo `pred_len` nến từ `lookback` nến gần nhất. Tính lợi nhuận
