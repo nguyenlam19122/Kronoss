@@ -133,6 +133,35 @@ def test_timeout_exit():
     print("✓ test_timeout_exit")
 
 
+def test_trailing_locks_profit():
+    """Price spikes to +2R then pulls back; trailing stop should exit ~+1R."""
+    df = _base_df()
+    oc = df.columns.get_loc
+    # bar 50: rise to 102 (extreme) -> after activation stop trails to 101
+    df.iloc[50, oc("open")], df.iloc[50, oc("high")] = 100.0, 102.0
+    df.iloc[50, oc("low")], df.iloc[50, oc("close")] = 100.0, 101.5
+    # bar 51: pull back to 101 -> hits the trailing stop
+    df.iloc[51, oc("open")], df.iloc[51, oc("high")] = 101.5, 101.5
+    df.iloc[51, oc("low")], df.iloc[51, oc("close")] = 101.0, 101.0
+
+    cfg = _cfg(rr=10.0, trail=True, trail_atr=1.0, trail_activate_r=1.0)  # TP far away
+    res = run_trade_sim(df, _forced_predict_fn(+1), cfg, verbose=False)
+    t = res["trades"].iloc[0]
+    assert t["reason"] == "trail", t["reason"]
+    assert abs(t["net_pnl"] - 25.0) < 1e-6   # locked +1R = +$25
+    assert res["metrics"]["trails"] == 1
+    print("✓ test_trailing_locks_profit")
+
+
+def test_rr_zero_disables_tp():
+    df = _base_df(n=120)
+    df.iloc[50, df.columns.get_loc("high")] = 200.0  # would smash any TP
+    res = run_trade_sim(df, _forced_predict_fn(+1), _cfg(rr=0.0), verbose=False)
+    t = res["trades"].iloc[0]
+    assert t["reason"] != "target" and t["target"] == ""
+    print("✓ test_rr_zero_disables_tp")
+
+
 def main():
     test_sizing_math()
     test_target_hit_gives_plus_rr_R()
@@ -140,6 +169,8 @@ def main():
     test_short_target()
     test_costs_reduce_pnl()
     test_timeout_exit()
+    test_trailing_locks_profit()
+    test_rr_zero_disables_tp()
     print("\nAll trade-sim tests passed ✅")
 
 

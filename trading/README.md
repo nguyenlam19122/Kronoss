@@ -71,7 +71,11 @@ python -m trading.run_trade_backtest --csv XAUUSDm_M5.csv --predictor momentum \
    `--risk-mode percent --risk-pct 0.005` để 1R = 0.5% vốn (cuốn lãi theo tài khoản).
 5. **Thoát:** SL/TP kiểm tra **trong nến** (dùng high/low; SL ưu tiên khi cả hai cùng nến).
    Nếu hết `max_hold` nến chưa chạm → thoát tại giá đóng cửa.
-6. **Chi phí:** **spread** (lấy thật từ cột `<SPREAD>` của MT5 theo từng nến) + **slippage**
+6. **Trailing stop (tùy chọn, `--trail`):** sau khi lời `trail_activate_r` R, SL được dời
+   theo đỉnh/đáy thuận lợi (cách `trail_atr × ATR`), chỉ đi theo hướng có lợi để khóa lời.
+   Kết hợp `--rr 0` (tắt TP) để "thả lệnh thắng chạy". Cập nhật trailing tính **sau** khi
+   kiểm tra thoát trong mỗi nến nên **không look-ahead**.
+7. **Chi phí:** **spread** (lấy thật từ cột `<SPREAD>` của MT5 theo từng nến) + **slippage**
    + **commission**, được **báo cáo tách riêng** để thấy rõ tác động.
 
 ### ⚠️ Hai cạm bẫy phải để ý (báo cáo đều hiển thị)
@@ -92,7 +96,8 @@ python -m trading.run_trade_backtest --csv XAUUSDm_M5.csv --predictor momentum \
 | | `--model` `--sample-count` | Checkpoint Kronos; số đường dự báo lấy trung bình |
 | | `--lookback` `--pred-len` `--signal-every` | Context; số nến dự báo; tần suất chạy model |
 | Tín hiệu | `--signal-mode` `--long-threshold` `--no-short` | Cách đọc & lọc tín hiệu |
-| SL/TP | `--sl-atr` `--rr` `--atr-period` `--max-hold` | Stop theo ATR (=1R); bội số R cho TP |
+| SL/TP | `--sl-atr` `--rr` `--atr-period` `--max-hold` | Stop theo ATR (=1R); bội số R cho TP (`--rr 0` = tắt TP) |
+| Trailing | `--trail` `--trail-atr` `--trail-activate-r` | Bật trailing stop; cách đỉnh/đáy bao nhiêu ATR; kích hoạt sau +mấy R |
 | Vốn/rủi ro | `--risk-mode` `--risk-amount` `--risk-pct` | `fixed` $25 hoặc `percent` 0.5% vốn |
 | | `--initial-capital` `--max-leverage` | Vốn ban đầu; trần đòn bẩy |
 | Chi phí | `--no-data-spread` `--spread-points` | Dùng spread thật hay cố định |
@@ -147,7 +152,7 @@ python -m trading.test_pipeline      # engine sơ khởi: dấu tín hiệu, kh�
 
 ## Hướng phát triển tiếp
 - **Position sizing** theo độ tin cậy dự báo (độ phân tán các đường sample).
-- **Trailing stop / break-even**, lọc theo phiên giao dịch, lọc biến động.
+- **Break-even tự động**, lọc theo phiên giao dịch, lọc biến động (trailing stop đã có).
 - **Fine-tune** Kronos trên đúng mã/khung của bạn (xem `finetune_csv/`) rồi trỏ `--model`
   vào checkpoint local.
 - **Paper/live**: nối `predict_fn` với API sàn (vd MT5 qua `MetaTrader5`, crypto qua `ccxt`).

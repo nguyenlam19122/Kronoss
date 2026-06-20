@@ -44,8 +44,13 @@ class TradeConfig:
     # --- stop-loss / take-profit (ATR units) ---
     atr_period: int = 14
     sl_atr: float = 1.5               # stop distance = sl_atr * ATR  == 1R
-    rr: float = 2.0                   # take-profit distance = rr * stop distance
+    rr: float = 2.0                   # take-profit = rr * stop distance (<=0 disables TP)
     max_hold: int | None = None       # bars before time-exit (default pred_len)
+
+    # --- trailing stop (optional) ---
+    trail: bool = False               # enable a trailing stop
+    trail_atr: float = 1.5            # trail distance behind the favourable extreme (× ATR)
+    trail_activate_r: float = 1.0     # start trailing only after +this many R in profit
 
     # --- sizing / account ---
     sizing: SizingConfig = field(default_factory=SizingConfig)
@@ -131,27 +136,44 @@ def run_trade_sim(
         if units <= 0:
             continue
 
-        sl = entry_price - direction * stop_dist
-        tp = entry_price + direction * cfg.rr * stop_dist
+        initial_stop = entry_price - direction * stop_dist
+        stop = initial_stop
+        use_tp = cfg.rr > 0
+        tp = entry_price + direction * cfg.rr * stop_dist if use_tp else None
+        trail_dist = cfg.trail_atr * atr_entry
+        activate_dist = cfg.trail_activate_r * stop_dist
+        extreme = entry_price  # best favourable price reached so far
 
-        # --- walk forward bar by bar; check SL before TP (conservative) ---
+        # --- walk forward bar by bar. The stop active during bar j reflects only
+        #     highs/lows up to j-1 (trailing is updated *after* the exit checks),
+        #     so there is no intrabar look-ahead. SL/trail checked before TP. ---
         exit_bar, exit_raw, reason = None, None, None
         end = min(t + max_hold, n)
         for j in range(t, end):
             if direction > 0:
-                if low[j] <= sl:
-                    exit_bar, exit_raw, reason = j, sl, "stop"
+                if low[j] <= stop:
+                    exit_bar, exit_raw = j, stop
+                    reason = "trail" if stop > initial_stop + 1e-12 else "stop"
                     break
-                if h[j] >= tp:
+                if use_tp and h[j] >= tp:
                     exit_bar, exit_raw, reason = j, tp, "target"
                     break
+                if cfg.trail:
+                    extreme = max(extreme, h[j])
+                    if extreme - entry_price >= activate_dist:
+                        stop = max(stop, extreme - trail_dist)
             else:
-                if h[j] >= sl:
-                    exit_bar, exit_raw, reason = j, sl, "stop"
+                if h[j] >= stop:
+                    exit_bar, exit_raw = j, stop
+                    reason = "trail" if stop < initial_stop - 1e-12 else "stop"
                     break
-                if low[j] <= tp:
+                if use_tp and low[j] <= tp:
                     exit_bar, exit_raw, reason = j, tp, "target"
                     break
+                if cfg.trail:
+                    extreme = min(extreme, low[j])
+                    if entry_price - extreme >= activate_dist:
+                        stop = min(stop, extreme + trail_dist)
         if exit_bar is None:
             exit_bar, exit_raw, reason = end - 1, float(c[end - 1]), "timeout"
 
@@ -179,8 +201,8 @@ def run_trade_sim(
                 "units": units,
                 "notional": units * entry_price,
                 "entry": entry_price,
-                "stop": sl,
-                "target": tp,
+                "stop": initial_stop,
+                "target": tp if use_tp else "",
                 "exit": exit_price,
                 "reason": reason,
                 "risk": risk_dollars,
@@ -288,6 +310,7 @@ def _trade_metrics(td, capital, equity, df, lookback, bars_in_market, test_bars)
         "shorts": int((td["side"] == "short").sum()),
         "stops": int((td["reason"] == "stop").sum()),
         "targets": int((td["reason"] == "target").sum()),
+        "trails": int((td["reason"] == "trail").sum()),
         "timeouts": int((td["reason"] == "timeout").sum()),
         "spread_cost": round(spread_cost, 2),
         "slippage_cost": round(slippage_cost, 2),
@@ -380,6 +403,7 @@ def format_trade_metrics(m: dict) -> str:
         ("shorts", "Shorts", ""),
         ("targets", "Hit target", ""),
         ("stops", "Hit stop", ""),
+        ("trails", "Hit trailing stop", ""),
         ("timeouts", "Timed out", ""),
         ("exposure", "Exposure", "%"),
         ("spread_cost", "  ├ spread", "$"),

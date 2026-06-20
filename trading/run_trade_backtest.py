@@ -65,8 +65,13 @@ def build_parser() -> argparse.ArgumentParser:
     risk = p.add_argument_group("stop-loss / take-profit")
     risk.add_argument("--atr-period", type=int, default=14)
     risk.add_argument("--sl-atr", type=float, default=1.5, help="Stop distance = sl_atr * ATR (= 1R).")
-    risk.add_argument("--rr", type=float, default=2.0, help="Take-profit = rr * stop distance.")
+    risk.add_argument("--rr", type=float, default=2.0, help="Take-profit = rr * stop distance (<=0 disables TP).")
     risk.add_argument("--max-hold", type=int, default=None, help="Time-exit (bars; default pred_len).")
+    risk.add_argument("--trail", action="store_true", help="Enable a trailing stop.")
+    risk.add_argument("--trail-atr", type=float, default=1.5,
+                      help="Trailing distance behind the favourable extreme (× ATR).")
+    risk.add_argument("--trail-activate-r", type=float, default=1.0,
+                      help="Start trailing only after +this many R in profit.")
 
     sz = p.add_argument_group("sizing / account")
     sz.add_argument("--risk-mode", default="fixed", choices=["fixed", "percent"])
@@ -115,6 +120,7 @@ def main(argv=None) -> int:
                             long_threshold=args.long_threshold,
                             short_threshold=args.short_threshold, allow_short=not args.no_short),
         atr_period=args.atr_period, sl_atr=args.sl_atr, rr=args.rr, max_hold=args.max_hold,
+        trail=args.trail, trail_atr=args.trail_atr, trail_activate_r=args.trail_activate_r,
         sizing=SizingConfig(mode=args.risk_mode, risk_amount=args.risk_amount,
                             risk_pct=args.risk_pct, max_leverage=args.max_leverage),
         initial_capital=args.initial_capital,
