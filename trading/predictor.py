@@ -11,7 +11,10 @@ import sys
 from functools import partial
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+
+from .signals import SignalConfig, expected_return
 
 # Make the repo-root `model` package importable when run from anywhere.
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -75,3 +78,54 @@ def make_kronos_predict_fn(
         top_k=top_k,
         sample_count=sample_count,
     )
+
+
+def make_kronos_ensemble_predict_fn(
+    predictor,
+    n_samples: int = 10,
+    T: float = 1.0,
+    top_p: float = 0.9,
+    top_k: int = 0,
+    signal: SignalConfig | None = None,
+):
+    """Ensemble wrapper that also estimates forecast **confidence**.
+
+    Runs the model ``n_samples`` times (each a stochastic single sample), returns
+    the mean forecast, and attaches to ``df.attrs``:
+
+    * ``confidence`` — fraction of sample paths whose direction agrees with the
+      mean direction (1.0 = unanimous; ~0.5 = a coin toss). Use with
+      ``TradeConfig.min_confidence`` to skip low-agreement signals.
+    * ``exp_return_std`` — dispersion of the per-sample expected returns.
+
+    Cost is ``n_samples`` × a normal forecast, so keep ``signal_every`` sensible.
+    """
+    sig = signal or SignalConfig()
+
+    def predict_fn(ctx, x_ts, y_ts, pred_len):
+        df_in = ctx[["open", "high", "low", "close", "volume", "amount"]].reset_index(drop=True)
+        x = pd.Series(x_ts).reset_index(drop=True)
+        y = pd.Series(y_ts).reset_index(drop=True)
+        last = float(ctx["close"].iloc[-1])
+
+        paths, ers = [], []
+        for _ in range(n_samples):
+            p = predictor.predict(df=df_in, x_timestamp=x, y_timestamp=y, pred_len=pred_len,
+                                  T=T, top_k=top_k, top_p=top_p, sample_count=1, verbose=False)
+            pc = p["close"].to_numpy()
+            paths.append(pc)
+            ers.append(expected_return(pc, last, sig))
+
+        mean_close = np.mean(paths, axis=0)
+        ers = np.asarray(ers)
+        mean_dir = np.sign(ers.mean()) if ers.mean() != 0 else 0
+        confidence = float((np.sign(ers) == mean_dir).mean()) if mean_dir != 0 else 0.0
+
+        out = pd.DataFrame({"open": mean_close, "high": mean_close, "low": mean_close,
+                            "close": mean_close, "volume": 0.0, "amount": 0.0},
+                           index=pd.Index(y.values, name="timestamps"))
+        out.attrs["confidence"] = confidence
+        out.attrs["exp_return_std"] = float(ers.std())
+        return out
+
+    return predict_fn

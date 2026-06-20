@@ -13,6 +13,7 @@ from .backtest import (
     save_results,
 )
 from .data import load_csv, load_data, load_mt5_csv, load_yfinance, resolve_symbol
+from .diagnostics import EdgeConfig, format_edge, measure_edge
 from .signals import SignalConfig, expected_return, position_from_forecast
 from .sizing import SizingConfig, size_position
 from .trade_sim import (
@@ -36,6 +37,10 @@ __all__ = [
     "run_trade_sim",
     "save_trade_results",
     "format_trade_metrics",
+    # edge diagnostics
+    "EdgeConfig",
+    "measure_edge",
+    "format_edge",
     # signals
     "SignalConfig",
     "expected_return",

@@ -73,6 +73,21 @@ def build_parser() -> argparse.ArgumentParser:
     risk.add_argument("--trail-activate-r", type=float, default=1.0,
                       help="Start trailing only after +this many R in profit.")
 
+    flt = p.add_argument_group("entry filters")
+    flt.add_argument("--trend-filter", action="store_true",
+                     help="Only trade in the direction of the EMA trend.")
+    flt.add_argument("--trend-ema", type=int, default=200, help="EMA period for the trend filter.")
+    flt.add_argument("--min-expected-r", type=float, default=0.0,
+                     help="Forecast must predict at least this many R of move to trade.")
+    flt.add_argument("--ensemble", type=int, default=0,
+                     help="Run N stochastic forecasts per signal to estimate confidence (needs Kronos).")
+    flt.add_argument("--min-confidence", type=float, default=0.0,
+                     help="Skip trades when ensemble agreement < this (0..1; requires --ensemble).")
+
+    diag = p.add_argument_group("diagnostics")
+    diag.add_argument("--edge-only", action="store_true",
+                      help="Measure forecast edge (accuracy / IC) instead of backtesting.")
+
     sz = p.add_argument_group("sizing / account")
     sz.add_argument("--risk-mode", default="fixed", choices=["fixed", "percent"])
     sz.add_argument("--risk-amount", type=float, default=25.0, help="1R in $ (fixed mode).")
@@ -111,16 +126,36 @@ def main(argv=None) -> int:
     print(f"   {len(df)} bars, {df.index.min()} → {df.index.max()} | point={point} | "
           f"per-bar spread: {'yes' if has_spread else 'no'}")
 
-    print(f"🧠 Predictor: {args.predictor}")
-    predict_fn = make_predict_fn(args)
+    sig_cfg = SignalConfig(mode=args.signal_mode, horizon=args.horizon,
+                           long_threshold=args.long_threshold,
+                           short_threshold=args.short_threshold, allow_short=not args.no_short)
+
+    print(f"🧠 Predictor: {args.predictor}" + (f" (ensemble x{args.ensemble})" if args.ensemble else ""))
+    if args.ensemble and args.predictor == "kronos":
+        from .predictor import load_kronos_predictor, make_kronos_ensemble_predict_fn
+        kp = load_kronos_predictor(args.model, args.tokenizer, args.device, args.max_context)
+        predict_fn = make_kronos_ensemble_predict_fn(
+            kp, n_samples=args.ensemble, T=args.T, top_p=args.top_p, top_k=args.top_k, signal=sig_cfg)
+    else:
+        predict_fn = make_predict_fn(args)
+
+    # --- diagnostics: measure edge instead of trading ---
+    if args.edge_only:
+        from .diagnostics import EdgeConfig, measure_edge
+        print("\n🔬 Measuring forecast edge (no trading) ...")
+        print("=" * 60)
+        measure_edge(df, predict_fn, EdgeConfig(
+            lookback=args.lookback, pred_len=args.pred_len,
+            signal_every=args.signal_every, signal=sig_cfg), verbose=True)
+        return 0
 
     cfg = TradeConfig(
         lookback=args.lookback, pred_len=args.pred_len, signal_every=args.signal_every,
-        signal=SignalConfig(mode=args.signal_mode, horizon=args.horizon,
-                            long_threshold=args.long_threshold,
-                            short_threshold=args.short_threshold, allow_short=not args.no_short),
+        signal=sig_cfg,
         atr_period=args.atr_period, sl_atr=args.sl_atr, rr=args.rr, max_hold=args.max_hold,
         trail=args.trail, trail_atr=args.trail_atr, trail_activate_r=args.trail_activate_r,
+        trend_filter=args.trend_filter, trend_ema=args.trend_ema,
+        min_confidence=args.min_confidence, min_expected_r=args.min_expected_r,
         sizing=SizingConfig(mode=args.risk_mode, risk_amount=args.risk_amount,
                             risk_pct=args.risk_pct, max_leverage=args.max_leverage),
         initial_capital=args.initial_capital,

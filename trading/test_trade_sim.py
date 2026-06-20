@@ -162,6 +162,61 @@ def test_rr_zero_disables_tp():
     print("✓ test_rr_zero_disables_tp")
 
 
+def _trend_df(n=120, direction="down"):
+    idx = pd.date_range("2024-01-01", periods=n, freq="5min")
+    close = np.linspace(105, 100, n) if direction == "down" else np.linspace(100, 105, n)
+    df = pd.DataFrame({"open": close, "high": close + 0.3, "low": close - 0.3,
+                       "close": close, "volume": 1.0, "amount": 100.0}, index=idx)
+    df.index.name = "timestamps"
+    df.attrs["point"] = 1.0
+    return df
+
+
+def test_trend_filter_blocks_counter_trend():
+    df = _trend_df(direction="down")  # price below its EMA
+    # Long signal against a downtrend -> blocked
+    blocked = run_trade_sim(df, _forced_predict_fn(+1),
+                            _cfg(trend_filter=True, trend_ema=20), verbose=False)
+    assert blocked["metrics"]["n_trades"] == 0
+    assert blocked["metrics"]["filtered_breakdown"]["trend"] >= 1
+    # Short signal with the downtrend -> allowed
+    allowed = run_trade_sim(df, _forced_predict_fn(-1),
+                            _cfg(trend_filter=True, trend_ema=20), verbose=False)
+    assert allowed["metrics"]["n_trades"] >= 1
+    print("✓ test_trend_filter_blocks_counter_trend")
+
+
+def test_min_expected_r_filters_small_moves():
+    def small_move(ctx, x_ts, y_ts, pred_len):
+        last = float(ctx["close"].iloc[-1])
+        vals = np.full(pred_len, last * (1 + 1e-4))  # ~0 predicted move
+        return pd.DataFrame({"open": vals, "high": vals, "low": vals, "close": vals,
+                             "volume": 0.0, "amount": 0.0},
+                            index=pd.Index(pd.Series(y_ts).values, name="timestamps"))
+    df = _base_df(n=120)
+    res = run_trade_sim(df, small_move, _cfg(min_expected_r=2.0), verbose=False)
+    assert res["metrics"]["n_trades"] == 0
+    assert res["metrics"]["filtered_breakdown"]["magnitude"] >= 1
+    print("✓ test_min_expected_r_filters_small_moves")
+
+
+def test_confidence_filter():
+    def conf_fn(confidence):
+        base = _forced_predict_fn(+1)
+        def fn(ctx, x_ts, y_ts, pred_len):
+            out = base(ctx, x_ts, y_ts, pred_len)
+            out.attrs["confidence"] = confidence
+            return out
+        return fn
+    df = _base_df(n=120)
+    low = run_trade_sim(df, conf_fn(0.4), _cfg(min_confidence=0.7), verbose=False)
+    assert low["metrics"]["n_trades"] == 0
+    assert low["metrics"]["filtered_breakdown"]["confidence"] >= 1
+    high = run_trade_sim(df, conf_fn(0.9), _cfg(min_confidence=0.7), verbose=False)
+    assert high["metrics"]["n_trades"] >= 1
+    print("✓ test_confidence_filter")
+
+
 def main():
     test_sizing_math()
     test_target_hit_gives_plus_rr_R()
@@ -171,6 +226,9 @@ def main():
     test_timeout_exit()
     test_trailing_locks_profit()
     test_rr_zero_disables_tp()
+    test_trend_filter_blocks_counter_trend()
+    test_min_expected_r_filters_small_moves()
+    test_confidence_filter()
     print("\nAll trade-sim tests passed ✅")
 
 

@@ -57,6 +57,26 @@ python -m trading.run_trade_backtest --csv XAUUSDm_M5.csv --predictor momentum \
 
 ---
 
+## ⭐ Bước 0 — Đo "edge" TRƯỚC khi tối ưu
+
+Việc giá trị nhất trước mọi thứ: kiểm tra Kronos có **dự báo đúng hướng** không. Tối ưu
+SL/TP/sizing trên một tín hiệu vô dụng là vô nghĩa.
+
+```bash
+python -m trading.run_trade_backtest --csv US30_M30.csv --predictor kronos \
+  --lookback 256 --pred-len 24 --signal-every 4 --edge-only
+```
+
+Đọc kết quả:
+- **Directional accuracy** ≥ ~55% (p nhỏ) → có edge rõ → đáng để giao dịch & tối ưu.
+- ~50% (p lớn) → **không có edge** → đổi mã/khung, tăng `--sample-count`/`--ensemble`,
+  hoặc fine-tune; đừng đụng SL/TP.
+- **IC / Rank IC** > 0 và **accuracy theo |pred|** tăng dần (high > low) → tín hiệu mạnh
+  thì đáng tin hơn → bật lọc độ tin cậy sẽ có ích.
+
+> Lưu ý: bộ lọc trend/confidence chỉ **khuếch đại** một tín hiệu đã có edge; trên tín hiệu
+> vô dụng (vd baseline momentum: accuracy ~48%, IC≈0) chúng chỉ làm nhỏ mẫu, không cứu được.
+
 ## Chiến lược: vào lệnh / stop-loss / take-profit
 
 1. **Tín hiệu:** Kronos dự báo `pred_len` nến từ `lookback` nến gần nhất. Tính lợi nhuận
@@ -98,6 +118,10 @@ python -m trading.run_trade_backtest --csv XAUUSDm_M5.csv --predictor momentum \
 | Tín hiệu | `--signal-mode` `--long-threshold` `--no-short` | Cách đọc & lọc tín hiệu |
 | SL/TP | `--sl-atr` `--rr` `--atr-period` `--max-hold` | Stop theo ATR (=1R); bội số R cho TP (`--rr 0` = tắt TP) |
 | Trailing | `--trail` `--trail-atr` `--trail-activate-r` | Bật trailing stop; cách đỉnh/đáy bao nhiêu ATR; kích hoạt sau +mấy R |
+| Lọc vào lệnh | `--trend-filter` `--trend-ema` | Chỉ vào lệnh thuận xu hướng EMA |
+| | `--min-expected-r` | Chỉ vào khi dự báo move ≥ mấy R |
+| | `--ensemble N` `--min-confidence` | Chạy N dự báo đo độ đồng thuận; chỉ vào khi đồng thuận ≥ ngưỡng |
+| Chẩn đoán | `--edge-only` | Đo độ chính xác hướng / IC thay vì backtest |
 | Vốn/rủi ro | `--risk-mode` `--risk-amount` `--risk-pct` | `fixed` $25 hoặc `percent` 0.5% vốn |
 | | `--initial-capital` `--max-leverage` | Vốn ban đầu; trần đòn bẩy |
 | Chi phí | `--no-data-spread` `--spread-points` | Dùng spread thật hay cố định |

@@ -52,6 +52,12 @@ class TradeConfig:
     trail_atr: float = 1.5            # trail distance behind the favourable extreme (× ATR)
     trail_activate_r: float = 1.0     # start trailing only after +this many R in profit
 
+    # --- entry filters (optional) ---
+    trend_filter: bool = False        # only trade in the direction of the EMA trend
+    trend_ema: int = 200              # EMA period for the trend filter
+    min_confidence: float = 0.0       # skip trades when ensemble agreement < this (needs ensemble)
+    min_expected_r: float = 0.0       # forecast must predict at least this many R of move
+
     # --- sizing / account ---
     sizing: SizingConfig = field(default_factory=SizingConfig)
     initial_capital: float = 5000.0
@@ -91,6 +97,9 @@ def run_trade_sim(
     has_spread = "spread" in df.columns
     spread_col = df["spread"].to_numpy(float) if has_spread else None
     atr = average_true_range(df, cfg.atr_period)
+    ema = (df["close"].ewm(span=cfg.trend_ema, adjust=False).mean().to_numpy()
+           if cfg.trend_filter else None)
+    filtered = {"trend": 0, "confidence": 0, "magnitude": 0}
 
     signal_every = cfg.signal_every or cfg.pred_len
     max_hold = cfg.max_hold or cfg.pred_len
@@ -123,10 +132,29 @@ def run_trade_sim(
         if direction == 0:
             continue
 
+        # --- confidence filter (ensemble agreement, set on pred_df.attrs) ---
+        if cfg.min_confidence > 0 and float(pred_df.attrs.get("confidence", 1.0)) < cfg.min_confidence:
+            filtered["confidence"] += 1
+            continue
+
+        # --- trend filter: only trade in the direction of the EMA ---
+        if cfg.trend_filter:
+            ema_v = float(ema[t - 1])
+            if (direction > 0 and last_close <= ema_v) or (direction < 0 and last_close >= ema_v):
+                filtered["trend"] += 1
+                continue
+
         atr_entry = float(atr[t - 1])
         stop_dist = cfg.sl_atr * atr_entry
         if stop_dist <= 0:
             continue
+
+        # --- magnitude filter: forecast must predict at least min_expected_r R ---
+        if cfg.min_expected_r > 0:
+            er = expected_return(pred_close, last_close, cfg.signal)
+            if abs(er) * last_close < cfg.min_expected_r * stop_dist:
+                filtered["magnitude"] += 1
+                continue
 
         # --- entry at next bar open, paying half-spread + slippage adversely ---
         entry_spread = bar_spread(t)
@@ -227,6 +255,8 @@ def run_trade_sim(
     test_bars = n - cfg.lookback
     metrics = _trade_metrics(trades_df, cfg.initial_capital, equity, df, cfg.lookback,
                              bars_in_market, test_bars)
+    metrics["signals_filtered"] = int(sum(filtered.values()))
+    metrics["filtered_breakdown"] = filtered
     equity_curve = _equity_curve(trades_df, df, cfg)
     return {"trades": trades_df, "equity": equity_curve, "metrics": metrics, "frame": df}
 
@@ -405,6 +435,7 @@ def format_trade_metrics(m: dict) -> str:
         ("stops", "Hit stop", ""),
         ("trails", "Hit trailing stop", ""),
         ("timeouts", "Timed out", ""),
+        ("signals_filtered", "Signals filtered", ""),
         ("exposure", "Exposure", "%"),
         ("spread_cost", "  ├ spread", "$"),
         ("slippage_cost", "  ├ slippage", "$"),
