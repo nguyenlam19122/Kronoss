@@ -1,0 +1,63 @@
+name: Measure Kronos edge
+
+# Runs the real Kronos model on GitHub's CPU runners (open internet -> can pull
+# weights from Hugging Face) and reports directional accuracy / IC per instrument.
+# Triggers automatically when this file or the data changes, or manually.
+on:
+  workflow_dispatch:
+    inputs:
+      signal_every:
+        description: "Bars between forecasts (larger = faster)"
+        default: "12"
+      last_n:
+        description: "Use only the last N bars per file"
+        default: "3000"
+  push:
+    branches: [claude/affectionate-fermi-b956vh]
+    paths:
+      - ".github/workflows/measure-edge.yml"
+      - "trading/mydata/**"
+
+jobs:
+  edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONUNBUFFERED: "1"
+      SIGNAL_EVERY: ${{ github.event.inputs.signal_every || '12' }}
+      LAST_N: ${{ github.event.inputs.last_n || '3000' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install CPU PyTorch + dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt -r trading/requirements.txt
+
+      - name: Measure Kronos edge on all instruments
+        run: |
+          set -o pipefail
+          python -m trading.measure_edge_all \
+            --predictor kronos --model NeoQuasar/Kronos-small \
+            --lookback 256 --pred-len 24 \
+            --signal-every "$SIGNAL_EVERY" --last-n "$LAST_N" \
+            --signal-mode mean \
+            --csv \
+              trading/mydata/XAUUSD_M30.csv \
+              trading/mydata/US30_M30.csv \
+              trading/mydata/US500_M30.csv \
+              trading/mydata/USTEC_M30.csv \
+              trading/mydata/BTCUSDT_M30.csv \
+            | tee edge_report.txt
+
+      - name: Upload edge report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-report
+          path: edge_report.txt
