@@ -21,6 +21,8 @@ not provide it; Kronos only needs OHLC + volume for forecasting.
 
 from __future__ import annotations
 
+import os
+
 import pandas as pd
 
 STD_COLS = ["open", "high", "low", "close", "volume", "amount"]
@@ -87,8 +89,67 @@ def _standardize(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _looks_like_mt5(path: str) -> bool:
+    """Detect a MetaTrader 5 export (tab-separated, ``<DATE> <TIME> ...`` header)."""
+    with open(path, "r", encoding="utf-8-sig", errors="ignore") as fh:
+        first = fh.readline()
+    return "<DATE>" in first or ("\t" in first and "<" in first)
+
+
+def _detect_point(raw: pd.DataFrame, price_cols: list[str]) -> float:
+    """Infer the instrument point size from the number of price decimals.
+
+    MT5 quotes the ``<SPREAD>`` column in *points*, where ``1 point = 10**-digits``
+    and ``digits`` is the number of decimal places in the price. We read prices as
+    strings so trailing zeros (e.g. ``2714.070`` -> 3 digits) are not lost.
+    """
+    digits = 0
+    for c in price_cols:
+        dec = raw[c].dropna().astype(str).str.split(".").str[1].str.len().max()
+        if pd.notna(dec):
+            digits = max(digits, int(dec))
+    return 10.0 ** (-digits)
+
+
+def load_mt5_csv(path: str) -> pd.DataFrame:
+    """Load a MetaTrader 5 CSV export into the standardized schema.
+
+    Handles the ``<DATE> <TIME> <OPEN> <HIGH> <LOW> <CLOSE> <TICKVOL> <VOL>
+    <SPREAD>`` layout. The per-bar ``<SPREAD>`` (in points) is converted to price
+    units and kept as a ``spread`` column; the detected ``point`` size and source
+    filename are stored on ``df.attrs`` for downstream cost modelling.
+    """
+    raw = pd.read_csv(path, sep="\t", dtype=str, encoding="utf-8-sig")
+    raw.columns = [c.strip().strip("<>").lower() for c in raw.columns]
+
+    price_cols = [c for c in ["open", "high", "low", "close"] if c in raw.columns]
+    if len(price_cols) < 4 or "date" not in raw.columns:
+        raise ValueError(f"Unrecognised MT5 layout in {path}: columns {list(raw.columns)}")
+    point = _detect_point(raw, price_cols)
+
+    time = raw["time"] if "time" in raw.columns else "00:00:00"
+    ts = pd.to_datetime(raw["date"].str.strip() + " " + pd.Series(time, index=raw.index).str.strip(),
+                        format="%Y.%m.%d %H:%M:%S", errors="coerce")
+
+    out = pd.DataFrame({"timestamps": ts})
+    for c in ["open", "high", "low", "close"]:
+        out[c] = raw[c].astype(float)
+    out["volume"] = raw["tickvol"].astype(float) if "tickvol" in raw.columns else 0.0
+    out["amount"] = out["volume"] * out["close"]
+    if "spread" in raw.columns:
+        out["spread"] = raw["spread"].astype(float) * point  # points -> price units
+
+    out = out.dropna(subset=["timestamps"]).set_index("timestamps").sort_index()
+    out = out[~out.index.duplicated(keep="last")]
+    out.attrs["point"] = point
+    out.attrs["instrument"] = os.path.splitext(os.path.basename(path))[0]
+    return out
+
+
 def load_csv(path: str) -> pd.DataFrame:
-    """Load a local CSV into the standardized OHLCV schema."""
+    """Load a local CSV (auto-detects MetaTrader 5 exports) into the std schema."""
+    if _looks_like_mt5(path):
+        return load_mt5_csv(path)
     df = pd.read_csv(path, encoding="utf-8-sig")
     return _standardize(df)
 

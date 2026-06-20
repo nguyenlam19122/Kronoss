@@ -12,20 +12,38 @@ from .backtest import (
     run_walk_forward,
     save_results,
 )
-from .data import load_csv, load_data, load_yfinance, resolve_symbol
+from .data import load_csv, load_data, load_mt5_csv, load_yfinance, resolve_symbol
 from .signals import SignalConfig, expected_return, position_from_forecast
+from .sizing import SizingConfig, size_position
+from .trade_sim import (
+    TradeConfig,
+    format_trade_metrics,
+    run_trade_sim,
+    save_trade_results,
+)
 
 __all__ = [
+    # return-compounding sketch
     "BacktestConfig",
-    "SignalConfig",
     "run_walk_forward",
     "save_results",
     "plot_results",
     "format_metrics",
+    # event-driven trade simulator (SL/TP, R-sizing, costs)
+    "TradeConfig",
+    "SizingConfig",
+    "size_position",
+    "run_trade_sim",
+    "save_trade_results",
+    "format_trade_metrics",
+    # signals
+    "SignalConfig",
     "expected_return",
     "position_from_forecast",
+    # data
     "load_data",
     "load_csv",
+    "load_mt5_csv",
     "load_yfinance",
     "resolve_symbol",
 ]
