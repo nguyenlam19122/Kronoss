@@ -1,0 +1,44 @@
+name: Verify Kronos edge (ensemble + short horizon)
+
+# Follow-up to measure-edge.yml: tests the two clues from the first run —
+# (A) does ensembling sharpen the indices' positive Rank IC, and
+# (B) is there more edge at a short horizon — on US30 + USTEC.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/affectionate-fermi-b956vh]
+    paths:
+      - ".github/workflows/verify-edge.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install CPU PyTorch + dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt -r trading/requirements.txt
+      - name: Verify edge — ensemble x6, short horizon (pred_len 6, h=3)
+        run: |
+          set -o pipefail
+          python -m trading.measure_edge_all \
+            --predictor kronos --model NeoQuasar/Kronos-small \
+            --ensemble 6 \
+            --lookback 256 --pred-len 6 --horizon 3 \
+            --signal-every 18 --last-n 3000 --signal-mode mean \
+            --csv trading/mydata/US30_M30.csv trading/mydata/USTEC_M30.csv \
+            | tee verify_report.txt
+      - name: Upload verify report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-report
+          path: verify_report.txt
