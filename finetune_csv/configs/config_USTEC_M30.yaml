@@ -1,0 +1,41 @@
+data:
+  data_path: data/USTEC_M30_ft.csv
+  lookback_window: 256
+  predict_window: 16
+  max_context: 512
+  clip: 5.0
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+training:
+  tokenizer_epochs: 8
+  basemodel_epochs: 15
+  batch_size: 32
+  log_interval: 50
+  num_workers: 2
+  seed: 42
+  tokenizer_learning_rate: 0.0002
+  predictor_learning_rate: 2.0e-05
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  adam_weight_decay: 0.1
+  accumulation_steps: 1
+model_paths:
+  pretrained_tokenizer: NeoQuasar/Kronos-Tokenizer-base
+  pretrained_predictor: NeoQuasar/Kronos-small
+  exp_name: USTEC_M30
+  base_path: finetuned
+  base_save_path: ''
+  finetuned_tokenizer: ''
+  tokenizer_save_name: tokenizer
+  basemodel_save_name: basemodel
+experiment:
+  name: kronos_USTEC_M30_finetune
+  description: Fine-tune Kronos-small on USTEC M30 (indices, short-horizon)
+  use_comet: false
+  train_tokenizer: true
+  train_basemodel: true
+  skip_existing: false
+device:
+  use_cuda: true
+  device_id: 0

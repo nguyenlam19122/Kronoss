@@ -77,3 +77,6 @@ tmp/
 
 # Trading backtest outputs (generated artifacts)
 trading/results/
+
+# Fine-tune checkpoints (large, regenerated on Colab)
+finetune_csv/finetuned/
