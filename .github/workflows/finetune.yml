@@ -1,0 +1,60 @@
+name: Fine-tune Kronos on US30 (CPU)
+
+# Hands-off fine-tune on GitHub's CPU runners (no GPU needed from the user).
+# Reduced epochs so it fits the runner time limit. Trains tokenizer + predictor
+# on US30 M30, then compares edge of the fine-tuned model vs the base model on
+# the held-out tail (out-of-sample).
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/affectionate-fermi-b956vh]
+    paths:
+      - ".github/workflows/finetune.yml"
+      - "finetune_csv/configs/config_US30_M30_cpu.yaml"
+
+jobs:
+  finetune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      PYTHONUNBUFFERED: "1"
+      OMP_NUM_THREADS: "4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install CPU PyTorch + dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt -r trading/requirements.txt
+
+      - name: Fine-tune (tokenizer + predictor, reduced epochs)
+        working-directory: finetune_csv
+        run: python train_sequential.py --config configs/config_US30_M30_cpu.yaml
+
+      - name: Evaluate edge — base vs fine-tuned (out-of-sample tail)
+        run: |
+          set -o pipefail
+          echo "=================== BASE Kronos-small ===================" | tee ft_eval.txt
+          python -m trading.measure_edge_all --predictor kronos \
+            --model NeoQuasar/Kronos-small --tokenizer NeoQuasar/Kronos-Tokenizer-base \
+            --lookback 256 --pred-len 6 --horizon 3 --signal-every 12 --last-n 2000 \
+            --csv trading/mydata/US30_M30.csv 2>&1 | tee -a ft_eval.txt
+          echo "" | tee -a ft_eval.txt
+          echo "=================== FINE-TUNED =========================" | tee -a ft_eval.txt
+          python -m trading.measure_edge_all --predictor kronos \
+            --model finetune_csv/finetuned/US30_M30_cpu/basemodel/best_model \
+            --tokenizer finetune_csv/finetuned/US30_M30_cpu/tokenizer/best_model \
+            --lookback 256 --pred-len 6 --horizon 3 --signal-every 12 --last-n 2000 \
+            --csv trading/mydata/US30_M30.csv 2>&1 | tee -a ft_eval.txt
+
+      - name: Upload results (report + fine-tuned model)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finetune-result
+          path: |
+            ft_eval.txt
+            finetune_csv/finetuned/US30_M30_cpu/
