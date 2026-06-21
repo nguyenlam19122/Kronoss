@@ -15,8 +15,9 @@ import numpy as np
 import pandas as pd
 
 from .data import load_csv
-from .gold_strategy import (backtest_signal, buy_hold_pf, default_cost_per_side,
-                            donchian, ema_cross, momentum, resample_ohlcv, sma_cross)
+from .gold_strategy import (backtest_signal, bollinger_meanrev, buy_hold_pf,
+                            default_cost_per_side, donchian, ema_cross, momentum,
+                            resample_ohlcv, rsi_meanrev, sma_cross)
 from .walkforward import _profit_factor
 
 
@@ -30,6 +31,10 @@ def build_signal(df, args):
         return donchian(df, args.n, long_only=lo)
     if args.strategy == "momentum":
         return momentum(df, args.n, long_only=lo)
+    if args.strategy == "bollinger":
+        return bollinger_meanrev(df, args.n, args.k, long_only=lo)
+    if args.strategy == "rsi":
+        return rsi_meanrev(df, args.rsi_period, args.rsi_low, args.rsi_high, long_only=lo)
     raise ValueError(args.strategy)
 
 
@@ -57,8 +62,8 @@ def plot(df, net, name, out_path):
     eq = (1 + net).cumprod()
     bh = df["close"] / float(df["close"].iloc[0])
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(eq.index, eq, label=f"{name} (trend strategy)", color="#1f77b4", lw=1.6)
-    ax.plot(bh.index, bh, label="Buy & hold gold", color="#ff7f0e", lw=1.2, alpha=0.8)
+    ax.plot(eq.index, eq, label=f"{name} (strategy)", color="#1f77b4", lw=1.6)
+    ax.plot(bh.index, bh, label="Buy & hold", color="#ff7f0e", lw=1.2, alpha=0.8)
     ax.set_yscale("log")
     ax.set_ylabel("Growth of 1 (log)")
     ax.set_title(name, fontweight="bold")
@@ -71,10 +76,15 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Trend-following gold strategy backtest.")
     p.add_argument("--csv", required=True)
     p.add_argument("--timeframe", default="4h", help="Resample rule: 4h, 1D, 1h ...")
-    p.add_argument("--strategy", default="ema", choices=["ema", "sma", "donchian", "momentum"])
+    p.add_argument("--strategy", default="ema",
+                   choices=["ema", "sma", "donchian", "momentum", "bollinger", "rsi"])
     p.add_argument("--fast", type=int, default=50)
     p.add_argument("--slow", type=int, default=200)
     p.add_argument("--n", type=int, default=55)
+    p.add_argument("--k", type=float, default=2.0, help="Bollinger band width (std devs).")
+    p.add_argument("--rsi-period", type=int, default=2)
+    p.add_argument("--rsi-low", type=float, default=10)
+    p.add_argument("--rsi-high", type=float, default=90)
     p.add_argument("--long-only", action="store_true")
     p.add_argument("--slippage-points", type=float, default=2.0)
     p.add_argument("--out-dir", default="trading/results")
@@ -83,8 +93,16 @@ def main(argv=None) -> int:
     raw = load_csv(args.csv)
     df = resample_ohlcv(raw, args.timeframe)
     cost = default_cost_per_side(df, args.slippage_points)
-    name = (f"XAUUSD_{args.timeframe}_{args.strategy}_{args.fast}_{args.slow}"
-            + ("_LO" if args.long_only else ""))
+    sym = os.path.splitext(os.path.basename(args.csv))[0].split("_")[0]
+    if args.strategy in ("ema", "sma"):
+        tag = f"{args.strategy}_{args.fast}_{args.slow}"
+    elif args.strategy == "bollinger":
+        tag = f"bollinger_{args.n}_{args.k}"
+    elif args.strategy == "rsi":
+        tag = f"rsi_{args.rsi_period}_{args.rsi_low}_{args.rsi_high}"
+    else:
+        tag = f"{args.strategy}_{args.n}"
+    name = f"{sym}_{args.timeframe}_{tag}" + ("_LO" if args.long_only else "")
 
     trades, net = backtest_signal(df, build_signal(df, args), cost)
     m = metrics(trades, net)

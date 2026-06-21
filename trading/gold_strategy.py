@@ -76,6 +76,51 @@ def macd_trend(df, fast=12, slow=26, signal=9, long_only=False):
     return pd.Series(d, index=df.index)
 
 
+# --- Mean-reversion signals (for range-bound markets like FX majors) --------- #
+def _rsi(close: pd.Series, period: int) -> pd.Series:
+    delta = close.diff()
+    up = delta.clip(lower=0).ewm(alpha=1 / period, adjust=False).mean()
+    dn = (-delta.clip(upper=0)).ewm(alpha=1 / period, adjust=False).mean()
+    rs = up / dn.replace(0, np.nan)
+    return (100 - 100 / (1 + rs)).fillna(50)
+
+
+def bollinger_meanrev(df, n=20, k=2.0, long_only=False):
+    """Buy below the lower band, sell/short above the upper band (revert to mean)."""
+    mid = df["close"].rolling(n).mean()
+    sd = df["close"].rolling(n).std()
+    d = pd.Series(np.nan, index=df.index)
+    d[df["close"] < mid - k * sd] = 1.0
+    d[df["close"] > mid + k * sd] = 0.0 if long_only else -1.0
+    return d.ffill().fillna(0.0)
+
+
+def rsi_meanrev(df, period=2, low=10, high=90, long_only=False):
+    """Buy when RSI is oversold, sell/short when overbought."""
+    r = _rsi(df["close"], period)
+    d = pd.Series(np.nan, index=df.index)
+    d[r < low] = 1.0
+    d[r > high] = 0.0 if long_only else -1.0
+    return d.ffill().fillna(0.0)
+
+
+def forex_zoo() -> dict:
+    """Trend + mean-reversion variants to search over for FX majors."""
+    z = {}
+    # trend (FX trends less than gold, but include for comparison)
+    for f, s in [(20, 50), (50, 100), (20, 100)]:
+        z[f"ema_{f}_{s}"] = lambda df, f=f, s=s: ema_cross(df, f, s)
+    z["donchian_20"] = lambda df: donchian(df, 20)
+    # mean-reversion (the FX focus)
+    for n, k in [(20, 2.0), (20, 1.5), (10, 2.0), (30, 2.0)]:
+        z[f"boll_{n}_{k}"] = lambda df, n=n, k=k: bollinger_meanrev(df, n, k)
+        z[f"boll_{n}_{k}_LO"] = lambda df, n=n, k=k: bollinger_meanrev(df, n, k, long_only=True)
+    for p, lo, hi in [(2, 10, 90), (2, 5, 95), (7, 20, 80), (14, 30, 70)]:
+        z[f"rsi_{p}_{lo}_{hi}"] = lambda df, p=p, lo=lo, hi=hi: rsi_meanrev(df, p, lo, hi)
+        z[f"rsi_{p}_{lo}_{hi}_LO"] = lambda df, p=p, lo=lo, hi=hi: rsi_meanrev(df, p, lo, hi, long_only=True)
+    return z
+
+
 def random_signal(df, seed=0):
     rng = np.random.default_rng(seed)
     # random but persistent (flip occasionally) so trade frequency is comparable
@@ -137,10 +182,10 @@ def backtest_signal(df: pd.DataFrame, direction: pd.Series, cost_per_side: float
     return pd.DataFrame(rows), net
 
 
-def build_strategy_trades(df: pd.DataFrame, cost_per_side: float, include_random=True) -> dict:
+def build_strategy_trades(df: pd.DataFrame, cost_per_side: float, include_random=True, zoo=None) -> dict:
     """Backtest every strategy variant -> {name: trades_df(entry_time, net_pnl)}."""
     out = {}
-    for name, fn in strategy_zoo().items():
+    for name, fn in (zoo or strategy_zoo()).items():
         trades, _ = backtest_signal(df, fn(df), cost_per_side)
         if len(trades):
             out[name] = trades[["entry_time", "net_pnl"]]
