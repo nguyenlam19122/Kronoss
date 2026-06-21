@@ -42,6 +42,23 @@ def persistence_predict_fn():
     return predict_fn
 
 
+def random_predict_fn(seed: int = 0):
+    """Random-direction baseline: forecast points up or down at random.
+
+    Used as a control in walk-forward PF: a real signal must beat this. If a
+    random signal reaches the same out-of-sample PF, the "profit" comes from
+    market drift + exit management, not from the model.
+    """
+    rng = np.random.default_rng(seed)
+
+    def predict_fn(ctx, x_ts, y_ts, pred_len):
+        last = float(ctx["close"].iloc[-1])
+        move = rng.normal(0.0, 0.01)
+        return _frame(np.full(pred_len, last * (1.0 + move)), ctx, y_ts)
+
+    return predict_fn
+
+
 def momentum_predict_fn(window: int = 20):
     """Trend-continuation baseline: extrapolate the recent average bar return."""
 
