@@ -148,9 +148,10 @@ def walk_forward(trades_by_combo: dict, df, wf: WFConfig) -> dict:
         oos_tr = tr[(tr["entry_time"] >= oos_start) & (tr["entry_time"] < oos_end)]["net_pnl"]
         oos_parts.append(oos_tr)
         is_pfs.append(best_is_pf)
+        params = dict(best_combo) if isinstance(best_combo, (tuple, list)) else best_combo
         per_fold.append({
             "fold": f, "oos_window": f"{oos_start.date()}→{oos_end.date()}",
-            "params": dict(best_combo), "in_sample_pf": round(best_is_pf, 3),
+            "params": params, "in_sample_pf": round(best_is_pf, 3),
             "in_sample_trades": best_is_n,
             "oos_trades": int(len(oos_tr)),
             "oos_pf": round(_profit_factor(oos_tr), 3) if len(oos_tr) else None,
