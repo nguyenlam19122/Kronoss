@@ -22,6 +22,22 @@ def _pf(df, sig, cost, min_trades=10):
     return (_profit_factor(tr["net_pnl"]), len(tr)) if len(tr) >= min_trades else (None, len(tr))
 
 
+def _reality(df, sig, cost):
+    """Risk reality behind the PF: a no-stop long-only mean-reversion 'holds the
+    dip' and can show a huge PF while sitting through a brutal open drawdown.
+    Report %time-in-market, strategy return & max DD vs plain buy & hold."""
+    tr, net = backtest_signal(df, sig, cost)
+    pos = sig.reindex(df.index).shift(1).fillna(0.0)
+    eq = (1 + net).cumprod()
+    s_ret = float(eq.iloc[-1] - 1)
+    s_dd = float((eq / eq.cummax() - 1).min())
+    bh = df["close"] / float(df["close"].iloc[0])
+    bh_ret = float(bh.iloc[-1] - 1)
+    bh_dd = float((bh / bh.cummax() - 1).min())
+    return {"time_in_mkt": float((pos != 0).mean()), "trades": len(tr),
+            "strat_ret": s_ret, "strat_dd": s_dd, "bh_ret": bh_ret, "bh_dd": bh_dd}
+
+
 def search_configs():
     cfgs = {}
     for n in (20, 30):
@@ -65,6 +81,7 @@ def main(argv=None) -> int:
     print(f"  {'pair':<9}{'bars':>7}  {'A) holdout pick':<16}{'TRAIN':>7}{'TEST':>7}   "
           f"{'B) fixed '+args.fixed:<18}{'TEST_PF':>8}")
     n_pass_a = n_pass_b = n_ok = 0
+    reality_rows = []
     for sym in args.symbols:
         try:
             df = load_yfinance(sym, period=args.period, interval=args.interval)
@@ -75,7 +92,9 @@ def main(argv=None) -> int:
         h = holdout(df, args.cost_frac)
         # fixed-config: honest = test-half PF (last 40%), no per-pair selection
         s = int(0.6 * len(df))
-        fx_pf, fx_n = _pf(df.iloc[s:], fixed_sig(df.iloc[s:]), args.cost_frac, 8)
+        te = df.iloc[s:]
+        fx_pf, fx_n = _pf(te, fixed_sig(te), args.cost_frac, 8)
+        reality_rows.append((sym.upper(), _reality(te, fixed_sig(te), args.cost_frac)))
         a_test = h["test_pf"] if h else None
         va = "✅" if a_test and a_test > 1.2 else ("🟡" if a_test and a_test > 1.0 else "🔴")
         vb = "✅" if fx_pf and fx_pf > 1.2 else ("🟡" if fx_pf and fx_pf > 1.0 else "🔴")
@@ -85,6 +104,17 @@ def main(argv=None) -> int:
         trp = h["train_pf"] if h else None
         print(f"  {sym.upper():<9}{len(df):>7}  {pick:<16}{str(trp):>7}{str(a_test):>6}{va} "
               f"  {'':<18}{str(round(fx_pf,2) if fx_pf else None):>6}{vb}")
+
+    # Reality check: a giant no-stop long-only PF can just be "hold the bull
+    # market" with a hidden open drawdown. Compare to plain buy & hold.
+    if reality_rows:
+        print(f"\n  REALITY CHECK — fixed {args.fixed}, test half (is the PF real edge or hidden beta?)")
+        print(f"  {'pair':<9}{'%inMkt':>7}{'trades':>7}{'stratRet':>9}{'stratDD':>8}   "
+              f"{'B&Hret':>8}{'B&HDD':>7}")
+        for name, r in reality_rows:
+            print(f"  {name:<9}{r['time_in_mkt']*100:>6.0f}%{r['trades']:>7}"
+                  f"{r['strat_ret']*100:>8.0f}%{r['strat_dd']*100:>7.0f}%   "
+                  f"{r['bh_ret']*100:>7.0f}%{r['bh_dd']*100:>6.0f}%")
 
     print(f"\n  (A) holdout-pick > 1.2 OOS : {n_pass_a}/{n_ok} pairs")
     print(f"  (B) fixed boll_30_2.0 > 1.2: {n_pass_b}/{n_ok} pairs  ← robustness (same rule, many pairs)")
