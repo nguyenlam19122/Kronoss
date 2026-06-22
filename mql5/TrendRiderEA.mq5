@@ -13,7 +13,7 @@
 //|   Test truc tiep: MT5 Strategy Tester (Ctrl+R), symbol = H1.     |
 //+------------------------------------------------------------------+
 #property copyright "forex_trend_bot"
-#property version   "1.10"
+#property version   "1.20"
 
 #include <Trade/Trade.mqh>
 
@@ -28,6 +28,11 @@ input int    EmaFast          = 50;       // EMA nhanh
 input int    EmaSlow          = 200;      // EMA cham
 input int    AdxPeriod        = 14;       // Chu ky ADX
 input double AdxMin           = 20.0;     // ADX toi thieu (loai sideway)
+//--- Loc REGIME (chi giao dich khi THUC SU co xu huong) ------------
+input bool   UseRegimeFilter  = true;     // Bat loc regime (cat bo cac lenh luc chop)
+input double RegimeAdxMin      = 25.0;    // ADX toi thieu de coi la "trend"
+input double EfficiencyMin     = 0.30;    // Kaufman Efficiency Ratio toi thieu
+input int    EfficiencyPeriod  = 20;      // So nen tinh Efficiency Ratio
 //--- Vao lenh & bien dong ------------------------------------------
 input int    DonchianPeriod   = 20;       // Breakout N nen
 input int    AtrPeriod        = 14;       // Chu ky ATR
@@ -144,6 +149,27 @@ double MinStopDist()
    return((double)stops_level * _Point);
 }
 
+//--- Kaufman Efficiency Ratio (cao = di thang/co trend, thap = nhieu/chop)
+double EfficiencyRatio(int period, int start)
+{
+   double net = MathAbs(iClose(_Symbol, PERIOD_CURRENT, start)
+                      - iClose(_Symbol, PERIOD_CURRENT, start + period));
+   double vol = 0.0;
+   for(int j = 0; j < period; j++)
+      vol += MathAbs(iClose(_Symbol, PERIOD_CURRENT, start + j)
+                   - iClose(_Symbol, PERIOD_CURRENT, start + j + 1));
+   if(vol <= 0.0) return(0.0);
+   return(net / vol);
+}
+
+//--- Regime hien tai co phai "trend" khong (ADX cao + Efficiency Ratio cao)
+bool RegimeIsTrend(double adx1)
+{
+   if(!UseRegimeFilter) return(true);
+   double er = EfficiencyRatio(EfficiencyPeriod, 1);
+   return(adx1 >= RegimeAdxMin && er >= EfficiencyMin);
+}
+
 //+------------------------------------------------------------------+
 //| Gong lenh: cap nhat Chandelier trailing stop                     |
 //+------------------------------------------------------------------+
@@ -198,6 +224,7 @@ void ManageTrailing(double atr1)
 void TryEnter(double emaF1, double emaS1, double adx1, double atr1)
 {
    if(SelectOurPosition()) return;
+   if(!RegimeIsTrend(adx1)) return;                  // bo qua khi thi truong dang chop
 
    bool trend_up = (emaF1 > emaS1) && (adx1 >= AdxMin);
    bool trend_dn = (emaF1 < emaS1) && (adx1 >= AdxMin);
@@ -256,10 +283,13 @@ void UpdateInfo(double adx1, double emaF1, double emaS1)
                   ? StringFormat("1R = $%.0f (all-in)", FixedRisk)
                   : StringFormat("%.1f%% equity", RiskPercent);
    double r = (RiskMode == RISK_FIXED_USD && FixedRisk > 0) ? profit / FixedRisk : 0.0;
+   double er = EfficiencyRatio(EfficiencyPeriod, 1);
+   string regime = (!UseRegimeFilter) ? "TAT (giao dich moi luc)"
+                 : (RegimeIsTrend(adx1) ? "TREND -> cho vao lenh" : "CHOP -> chan vao lenh");
 
    Comment(StringFormat(
-      "=== TrendRider EA (H1) ===\nXu huong: %s | ADX: %.1f\nVi the: %s | SL: %.5f\nLoi nhuan mo: $%.2f (%.2fR)\nRui ro: %s",
-      trend, adx1, pos, sl, profit, r, rmode));
+      "=== TrendRider EA (H1) ===\nXu huong: %s | ADX: %.1f | ER: %.2f\nRegime filter: %s\nVi the: %s | SL: %.5f\nLoi nhuan mo: $%.2f (%.2fR)\nRui ro: %s",
+      trend, adx1, er, regime, pos, sl, profit, r, rmode));
 }
 
 //+------------------------------------------------------------------+
