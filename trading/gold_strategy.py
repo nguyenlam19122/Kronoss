@@ -123,12 +123,61 @@ def forex_zoo() -> dict:
 
 def random_signal(df, seed=0):
     rng = np.random.default_rng(seed)
-    # random but persistent (flip occasionally) so trade frequency is comparable
     raw = rng.choice([1.0, -1.0], size=len(df))
     return pd.Series(raw, index=df.index)
 
 
-# Strategy variants to search over (trend-following only — research-backed).
+# --- Ichimoku (trend) ------------------------------------------------------- #
+def ichimoku(df, mode="cloud", t=9, k=26, b=52, long_only=False):
+    tenkan = (df["high"].rolling(t).max() + df["low"].rolling(t).min()) / 2
+    kijun = (df["high"].rolling(k).max() + df["low"].rolling(k).min()) / 2
+    span_a = ((tenkan + kijun) / 2).shift(k)
+    span_b = ((df["high"].rolling(b).max() + df["low"].rolling(b).min()) / 2).shift(k)
+    top = pd.concat([span_a, span_b], axis=1).max(axis=1)
+    bot = pd.concat([span_a, span_b], axis=1).min(axis=1)
+    short = 0.0 if long_only else -1.0
+    if mode == "tk":           # Tenkan/Kijun cross
+        d = np.where(tenkan > kijun, 1.0, short)
+        return pd.Series(d, index=df.index).where(kijun.notna(), 0.0)
+    if mode == "combo":        # above cloud AND TK bullish
+        d = pd.Series(np.nan, index=df.index)
+        d[(df["close"] > top) & (tenkan > kijun)] = 1.0
+        d[(df["close"] < bot) & (tenkan < kijun)] = short
+        return d.ffill().fillna(0.0)
+    # default: cloud breakout
+    d = pd.Series(np.nan, index=df.index)
+    d[df["close"] > top] = 1.0
+    d[df["close"] < bot] = short
+    return d.ffill().fillna(0.0)
+
+
+# --- Volume-based ----------------------------------------------------------- #
+def vol_breakout(df, n=20, vmult=1.5, long_only=False):
+    """Donchian breakout confirmed by above-average volume."""
+    upper = df["high"].rolling(n).max().shift(1)
+    lower = df["low"].rolling(n).min().shift(1)
+    vol_ok = df["volume"] > df["volume"].rolling(n).mean() * vmult
+    d = pd.Series(np.nan, index=df.index)
+    d[(df["close"] > upper) & vol_ok] = 1.0
+    d[(df["close"] < lower) & vol_ok] = 0.0 if long_only else -1.0
+    return d.ffill().fillna(0.0)
+
+
+def mr_lowvol(df, n=20, k=2.0, long_only=False):
+    """Bollinger mean-reversion, only when volume is quiet (range-bound)."""
+    base = bollinger_meanrev(df, n, k, long_only=long_only)
+    quiet = (df["volume"] < df["volume"].rolling(n * 5).median()).astype(float)
+    return base * quiet.reindex(df.index).fillna(0.0)
+
+
+def obv_trend(df, n=20, long_only=False):
+    """On-Balance-Volume trend: long when OBV above its moving average."""
+    sign = np.sign(df["close"].diff()).fillna(0.0)
+    obv = (sign * df["volume"]).cumsum()
+    d = np.where(obv > obv.rolling(n).mean(), 1.0, 0.0 if long_only else -1.0)
+    return pd.Series(d, index=df.index)
+
+
 def strategy_zoo() -> dict:
     z = {}
     for f, s in [(21, 50), (20, 100), (50, 200), (10, 30)]:
