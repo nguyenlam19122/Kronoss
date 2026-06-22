@@ -38,6 +38,7 @@ python -m forex_trend_bot.run_backtest --data path/to/EURUSD_H1.csv --plot
 # Tùy chọn
 python -m forex_trend_bot.run_backtest --fixed-risk 50 --spread 0.0002  # 1R=$50, spread 2 pip (mặc định fixed)
 python -m forex_trend_bot.run_backtest --risk-mode percent --risk 0.01  # đổi sang rủi ro 1% equity (compounding)
+python -m forex_trend_bot.run_backtest --regime-filter                  # chỉ vào lệnh khi regime=trend (lọc chop)
 python -m forex_trend_bot.run_backtest --short-off                      # chỉ giao dịch long
 python -m forex_trend_bot.run_backtest --exit-on-flip                   # thoát khi EMA đảo
 ```
@@ -54,6 +55,21 @@ Chưa có dữ liệu thật? Tạo bộ giả lập để thử pipeline (⚠�
 ```bash
 python -m forex_trend_bot.make_sample_data
 ```
+
+## Phân tích regime (thị trường có xu hướng hay đi ngang?)
+
+Theo workflow course: **trước khi** chọn chiến lược, dùng thống kê để xác định mỗi thị
+trường thuộc chế độ nào. Chạy:
+
+```bash
+python -m forex_trend_bot.analyze_regime --data forex_trend_bot/data
+```
+
+Báo cáo gồm **Hurst exponent**, **Variance Ratio test** (z-stat, p-value), **tự tương quan**,
+**Efficiency Ratio** và kết luận: nên dùng **trend-following**, **mean-reversion**, hay **đứng ngoài**.
+
+Sau đó dùng cờ `--regime-filter` ở backtest để **chỉ giao dịch khi có trend** (bỏ qua sideway) —
+giảm mạnh thua do whipsaw ở các thị trường đi ngang.
 
 ## Đọc kết quả
 

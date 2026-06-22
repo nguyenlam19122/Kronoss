@@ -103,6 +103,7 @@ def build_params(args):
         spread=args.spread,
         allow_long=not args.long_off,
         allow_short=not args.short_off,
+        regime_filter=args.regime_filter,
     )
     if args.exit_on_flip:
         sp.exit_on_trend_flip = True
@@ -125,6 +126,7 @@ def main():
     ap.add_argument("--long-off", action="store_true")
     ap.add_argument("--short-off", action="store_true")
     ap.add_argument("--exit-on-flip", action="store_true", help="Thoát khi trend đảo (mặc định: gồng bằng trailing)")
+    ap.add_argument("--regime-filter", action="store_true", help="Chỉ vào lệnh khi regime = trend (lọc bỏ sideway)")
     args = ap.parse_args()
 
     sp, bp = build_params(args)

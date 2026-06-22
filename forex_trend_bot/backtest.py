@@ -43,6 +43,8 @@ def run_backtest(df: pd.DataFrame, sp: StrategyParams, bp: BacktestParams):
     dc_lo = df["dc_lower_prev"].to_numpy(float)
     ch_hi = df["chand_high"].to_numpy(float)
     ch_lo = df["chand_low"].to_numpy(float)
+    regime_trend = (df["regime_trend"].to_numpy(bool)
+                    if "regime_trend" in df.columns else np.ones(len(df), dtype=bool))
     index = df.index
 
     n = len(df)
@@ -67,8 +69,9 @@ def run_backtest(df: pd.DataFrame, sp: StrategyParams, bp: BacktestParams):
             stop_dist = atr[i - 1] * sp.atr_stop_mult
             trend_up = (ema_f[i - 1] > ema_s[i - 1]) and (adx[i - 1] >= sp.adx_min)
             trend_dn = (ema_f[i - 1] < ema_s[i - 1]) and (adx[i - 1] >= sp.adx_min)
-            long_sig = bp.allow_long and trend_up and (c[i - 1] > dc_up[i - 1])
-            short_sig = bp.allow_short and trend_dn and (c[i - 1] < dc_lo[i - 1])
+            regime_ok = (not bp.regime_filter) or bool(regime_trend[i - 1])  # lọc sideway nếu bật
+            long_sig = bp.allow_long and regime_ok and trend_up and (c[i - 1] > dc_up[i - 1])
+            short_sig = bp.allow_short and regime_ok and trend_dn and (c[i - 1] < dc_lo[i - 1])
 
             if stop_dist > 0 and (long_sig or short_sig):
                 # 1R cố định theo $ (mặc định) hoặc theo % equity

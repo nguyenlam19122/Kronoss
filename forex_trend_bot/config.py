@@ -37,3 +37,4 @@ class BacktestParams:
     spread: float = 0.0001      # spread round-turn theo đơn vị giá (EURUSD ~1 pip); ĐƯỢC TÍNH TRỌN trong 1R
     allow_long: bool = True
     allow_short: bool = True
+    regime_filter: bool = False # True = chỉ vào lệnh khi regime = "trend" (lọc bỏ sideway)

@@ -11,6 +11,7 @@ quyết định, khớp lệnh tại open nến i) được xử lý trong vòng
 import pandas as pd
 
 from . import indicators as ind
+from . import regime as regime_mod
 from .config import StrategyParams
 
 
@@ -36,5 +37,8 @@ def prepare(df: pd.DataFrame, sp: StrategyParams) -> pd.DataFrame:
     trend[(out["ema_fast"] > out["ema_slow"]) & strong] = 1
     trend[(out["ema_fast"] < out["ema_slow"]) & strong] = -1
     out["trend"] = trend
+
+    # Nhãn regime (xu hướng vs đi ngang) — dùng cho bộ lọc tuỳ chọn trong backtest
+    out["regime_trend"] = (regime_mod.classify_bars(out) == "trend")
 
     return out
