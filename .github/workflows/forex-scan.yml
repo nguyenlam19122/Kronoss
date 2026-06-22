@@ -1,0 +1,56 @@
+name: Forex multi-pair mean-reversion scan
+
+# Pulls many FX pairs from Yahoo Finance (open internet on the runner) and
+# tests the mean-reversion edge with an honest holdout per pair + one fixed
+# rule across all pairs. The robustness question: does the same rule clear
+# PF > 1.2 out-of-sample on several pairs, or only on EURUSD (overfit)?
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/affectionate-fermi-b956vh]
+    paths:
+      - ".github/workflows/forex-scan.yml"
+      - "trading/run_forex_scan.py"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies (no torch needed)
+        run: pip install numpy pandas yfinance
+
+      - name: Scan FX majors — H1 (~2y, lower timeframe) and Daily (long history)
+        run: |
+          set -o pipefail
+          PAIRS="eurusd gbpusd audusd usdjpy usdchf usdcad nzdusd"
+          echo "############### H1 (lower timeframe, ~2 years) ###############" | tee forex_scan.txt
+          python -m trading.run_forex_scan --symbols $PAIRS \
+            --interval 1h --period 730d --cost-frac 0.00007 2>&1 | tee -a forex_scan.txt || true
+          echo "" | tee -a forex_scan.txt
+          echo "############### DAILY (long history, more robust) ###############" | tee -a forex_scan.txt
+          python -m trading.run_forex_scan --symbols $PAIRS \
+            --interval 1d --period 10y --cost-frac 0.00005 2>&1 | tee -a forex_scan.txt || true
+
+          IDX="SPY QQQ DIA IWM"
+          echo "" | tee -a forex_scan.txt
+          echo "############### US INDEX ETFs — H1 (~2y) [mean-reversion lead] ###############" | tee -a forex_scan.txt
+          python -m trading.run_forex_scan --symbols $IDX \
+            --interval 1h --period 730d --cost-frac 0.00005 2>&1 | tee -a forex_scan.txt || true
+          echo "" | tee -a forex_scan.txt
+          echo "############### US INDEX ETFs — DAILY (~15y, multi-regime) ###############" | tee -a forex_scan.txt
+          python -m trading.run_forex_scan --symbols $IDX \
+            --interval 1d --period 15y --cost-frac 0.00003 2>&1 | tee -a forex_scan.txt || true
+
+      - name: Upload scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forex-scan-report
+          path: forex_scan.txt

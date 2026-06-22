@@ -1,0 +1,4 @@
+# Extra dependencies for the trading pipeline (on top of the repo root requirements.txt).
+# The Kronos model itself needs: numpy, pandas, torch, einops, huggingface_hub, safetensors.
+yfinance>=0.2.40   # live data for Forex / Gold / BTC / US stocks (Yahoo Finance)
+matplotlib>=3.9    # backtest charts (already in root requirements, listed for completeness)

@@ -1,0 +1,73 @@
+name: Walk-forward OOS profit factor
+
+# Honest out-of-sample PF on US30: optimise strategy params on past segments,
+# score on the next (unseen) segment. Runs three signals for comparison —
+# RANDOM (control), BASE Kronos, and the FINE-TUNED model (downloaded from the
+# earlier fine-tune run so we don't retrain). A real edge must beat random.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/affectionate-fermi-b956vh]
+    paths:
+      - ".github/workflows/walkforward.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  walkforward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    env:
+      PYTHONUNBUFFERED: "1"
+      OMP_NUM_THREADS: "4"
+      WF: "--csv trading/mydata/US30_M30.csv --lookback 256 --pred-len 6 --signal-every 12 --n-folds 4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install CPU PyTorch + dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt -r trading/requirements.txt
+
+      - name: Download fine-tuned model from the fine-tune run
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: finetune-result
+          path: .
+          run-id: 27891819918
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Walk-forward — random / base / fine-tuned
+        run: |
+          echo "############### RANDOM baseline (control) ###############" | tee wf_report.txt
+          python -m trading.run_walkforward $WF --predictor random 2>&1 | tee -a wf_report.txt || echo "random FAILED" | tee -a wf_report.txt
+
+          echo "" | tee -a wf_report.txt
+          echo "############### BASE Kronos-small ###############" | tee -a wf_report.txt
+          python -m trading.run_walkforward $WF --predictor kronos \
+            --model NeoQuasar/Kronos-small --tokenizer NeoQuasar/Kronos-Tokenizer-base \
+            2>&1 | tee -a wf_report.txt || echo "base FAILED" | tee -a wf_report.txt
+
+          echo "" | tee -a wf_report.txt
+          echo "############### FINE-TUNED ###############" | tee -a wf_report.txt
+          if [ -d finetune_csv/finetuned/US30_M30_cpu/basemodel/best_model ]; then
+            python -m trading.run_walkforward $WF --predictor kronos \
+              --model finetune_csv/finetuned/US30_M30_cpu/basemodel/best_model \
+              --tokenizer finetune_csv/finetuned/US30_M30_cpu/tokenizer/best_model \
+              2>&1 | tee -a wf_report.txt || echo "finetuned FAILED" | tee -a wf_report.txt
+          else
+            echo "fine-tuned model not found (artifact download failed)" | tee -a wf_report.txt
+          fi
+
+      - name: Upload walk-forward report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: walkforward-report
+          path: wf_report.txt

@@ -1,0 +1,54 @@
+name: Diversified trend portfolio (managed-futures test)
+
+# Honest test of the most literature-backed edge: long/short trend-following
+# across a diversified basket (equities, bonds, commodities, crypto), combined
+# at equal risk, judged OUT-OF-SAMPLE against a risk-parity buy & hold. Pulls
+# ~15y daily from Yahoo Finance (open internet on the runner).
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/affectionate-fermi-b956vh]
+    paths:
+      - ".github/workflows/trend-portfolio.yml"
+      - "trading/run_trend_portfolio.py"
+      - "trading/run_crypto_trend.py"
+
+jobs:
+  portfolio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies (no torch needed)
+        run: pip install numpy pandas yfinance
+
+      - name: Trend portfolio — EMA 50/200 long/short
+        run: |
+          set -o pipefail
+          echo "############### EMA 50/200 long/short ###############" | tee trend_portfolio.txt
+          python -m trading.run_trend_portfolio --signal ema --fast 50 --slow 200 \
+            2>&1 | tee -a trend_portfolio.txt || true
+          echo "" | tee -a trend_portfolio.txt
+          echo "############### 12-month time-series momentum ###############" | tee -a trend_portfolio.txt
+          python -m trading.run_trend_portfolio --signal tsmom \
+            2>&1 | tee -a trend_portfolio.txt || true
+
+      - name: Validate crypto trend edge (BTC/ETH walk-forward + random control)
+        run: |
+          set -o pipefail
+          echo "############### CRYPTO TREND VALIDATION ###############" | tee crypto_trend.txt
+          python -m trading.run_crypto_trend 2>&1 | tee -a crypto_trend.txt || true
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trend-portfolio-report
+          path: |
+            trend_portfolio.txt
+            crypto_trend.txt
