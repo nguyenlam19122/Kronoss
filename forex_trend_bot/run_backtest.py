@@ -68,6 +68,16 @@ def run_one(path, sp, bp, do_plot, segments, mc_sims, validate):
 
     df = prepare(df, sp)
     trades, equity = run_backtest(df, sp, bp)
+
+    if bp.risk_mode == "fixed":
+        print(f"Chế độ rủi ro: 1R = ${bp.fixed_risk:.0f} cố định | spread = {bp.spread:g} (đã trừ vào lợi nhuận)")
+    else:
+        print(f"Chế độ rủi ro: {bp.risk_pct:.2%} equity/lệnh | spread = {bp.spread:g} (đã trừ vào lợi nhuận)")
+    if len(trades):
+        spread_cost = float((trades["size"] * bp.spread).sum())
+        extra = f"  (≈ {spread_cost / bp.fixed_risk:.1f}R)" if bp.risk_mode == "fixed" else ""
+        print(f"Tổng phí spread đã trừ        : ${spread_cost:,.2f}{extra}")
+
     m = M.compute(trades, equity, bp.initial_equity)
     print("\n" + M.format_report(m, "HIỆU NĂNG"))
 
@@ -86,6 +96,8 @@ def build_params(args):
     sp = StrategyParams()
     bp = BacktestParams(
         initial_equity=args.equity,
+        risk_mode=args.risk_mode,
+        fixed_risk=args.fixed_risk,
         risk_pct=args.risk,
         spread=args.spread,
         allow_long=not args.long_off,
@@ -101,8 +113,11 @@ def main():
     ap.add_argument("--data", default=DEFAULT_DATA_DIR, help="File CSV hoặc thư mục chứa các file CSV H1")
     ap.add_argument("--plot", action="store_true", help="Lưu biểu đồ equity/drawdown")
     ap.add_argument("--equity", type=float, default=10_000.0)
-    ap.add_argument("--risk", type=float, default=0.01, help="Rủi ro mỗi lệnh (mặc định 1%)")
-    ap.add_argument("--spread", type=float, default=0.0001, help="Spread theo đơn vị giá")
+    ap.add_argument("--risk-mode", choices=["fixed", "percent"], default="fixed",
+                    help="fixed = 1R cố định $ (mặc định, dễ thống kê edge); percent = %% equity")
+    ap.add_argument("--fixed-risk", type=float, default=50.0, help="1R = bao nhiêu $ (khi --risk-mode fixed)")
+    ap.add_argument("--risk", type=float, default=0.01, help="Rủi ro mỗi lệnh khi --risk-mode percent (mặc định 1%%)")
+    ap.add_argument("--spread", type=float, default=0.0001, help="Spread theo đơn vị giá (vd EURUSD 0.0001)")
     ap.add_argument("--segments", type=int, default=4, help="Số đoạn cho walk-forward")
     ap.add_argument("--mc-sims", type=int, default=2000, help="Số mô phỏng Monte Carlo")
     ap.add_argument("--no-validation", action="store_true")

@@ -71,7 +71,8 @@ def run_backtest(df: pd.DataFrame, sp: StrategyParams, bp: BacktestParams):
             short_sig = bp.allow_short and trend_dn and (c[i - 1] < dc_lo[i - 1])
 
             if stop_dist > 0 and (long_sig or short_sig):
-                risk_amount = equity * bp.risk_pct
+                # 1R cố định theo $ (mặc định) hoặc theo % equity
+                risk_amount = bp.fixed_risk if bp.risk_mode == "fixed" else equity * bp.risk_pct
                 size = risk_amount / stop_dist
                 entry_i = i
                 if long_sig:

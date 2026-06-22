@@ -53,11 +53,15 @@ def monte_carlo(trades: pd.DataFrame, bp: BacktestParams, n_sims: int = 2000, se
     max_dds = np.empty(n_sims)
     for k in range(n_sims):
         sample = R[rng.integers(0, n, size=n)]
-        growth = 1.0 + sample * bp.risk_pct
-        equity = bp.initial_equity * np.cumprod(growth)
+        if bp.risk_mode == "fixed":
+            equity = bp.initial_equity + np.cumsum(sample * bp.fixed_risk)   # 1R = $ cố định -> cộng dồn
+        else:
+            equity = bp.initial_equity * np.cumprod(1.0 + sample * bp.risk_pct)  # % equity -> nhân dồn
         final_returns[k] = equity[-1] / bp.initial_equity - 1.0
         peak = np.maximum.accumulate(equity)
-        max_dds[k] = float(((equity - peak) / peak).min())
+        with np.errstate(divide="ignore", invalid="ignore"):
+            dd = np.where(peak > 0, (equity - peak) / peak, 0.0)
+        max_dds[k] = float(np.min(dd))
 
     pct = lambda a, q: float(np.percentile(a, q))
     return {

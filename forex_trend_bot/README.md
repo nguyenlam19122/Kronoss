@@ -13,7 +13,7 @@ Bot **trend-following "gồng lệnh"** cho forex khung **H1**, gồm 2 phần d
 | **Vào lệnh** | Breakout kênh **Donchian(20)** theo chiều trend (long khi phá đỉnh, short khi phá đáy) |
 | **GỒNG LỆNH** | **Chandelier trailing stop** = `đỉnh_cao_nhất(22) − ATR(14)×3`, chỉ siết theo chiều có lợi → cho lãi chạy |
 | **Thoát** | Khi trailing stop bị chạm (mặc định để trailing tự lo, gồng dài theo trend) |
-| **Sizing** | Rủi ro cố định **1% equity/lệnh**, khối lượng tính theo khoảng dừng lỗ ATR |
+| **Sizing** | Backtest mặc định **1R = $50 cố định** (để thống kê edge sạch); khối lượng = rủi ro ÷ khoảng dừng lỗ ATR. EA live dùng **% equity** (`RiskPercent`). |
 
 > Đặc tính trend-following: **win rate thấp (~35–45%)** nhưng **payoff cao** — cắt lỗ nhanh, gồng lãi lớn. Lãi tổng đến từ một số ít lệnh thắng đậm.
 
@@ -36,9 +36,10 @@ python -m forex_trend_bot.run_backtest --data forex_trend_bot/data --plot
 python -m forex_trend_bot.run_backtest --data path/to/EURUSD_H1.csv --plot
 
 # Tùy chọn
-python -m forex_trend_bot.run_backtest --risk 0.005 --spread 0.0002   # rủi ro 0.5%, spread 2 pip
-python -m forex_trend_bot.run_backtest --short-off                    # chỉ giao dịch long
-python -m forex_trend_bot.run_backtest --exit-on-flip                 # thoát khi EMA đảo
+python -m forex_trend_bot.run_backtest --fixed-risk 50 --spread 0.0002  # 1R=$50, spread 2 pip (mặc định fixed)
+python -m forex_trend_bot.run_backtest --risk-mode percent --risk 0.01  # đổi sang rủi ro 1% equity (compounding)
+python -m forex_trend_bot.run_backtest --short-off                      # chỉ giao dịch long
+python -m forex_trend_bot.run_backtest --exit-on-flip                   # thoát khi EMA đảo
 ```
 
 ### Định dạng dữ liệu
@@ -56,7 +57,7 @@ python -m forex_trend_bot.make_sample_data
 
 ## Đọc kết quả
 
-- **HIỆU NĂNG**: tổng lợi nhuận, CAGR, Sharpe, max drawdown, win rate, profit factor, kỳ vọng (R)...
+- **HIỆU NĂNG**: **∑R (tổng R)**, kỳ vọng (R)/lệnh, **Max DD theo R**, profit factor, Sharpe, max drawdown, win rate... Khi 1R = $50 cố định thì **∑R + T-test là thước đo edge sạch nhất**.
 - **KIỂM ĐỊNH ĐỘ BỀN** (real-edge hay fake-edge):
   1. **Phân tích theo đoạn** — edge có ổn định qua các giai đoạn không?
   2. **Monte Carlo** (bootstrap) — phân phối lợi nhuận & drawdown, xác suất thua lỗ.

@@ -50,10 +50,13 @@ def compute(trades: pd.DataFrame, equity: pd.Series, initial_equity: float) -> d
         losses = pnl[pnl < 0]
         gross_win = float(wins.sum())
         gross_loss = float(-losses.sum())
+        cum_R = trades["R"].cumsum()
         out.update({
             "win_rate": float((pnl > 0).mean()),
             "profit_factor": (gross_win / gross_loss) if gross_loss > 0 else float("inf"),
-            "avg_R": float(trades["R"].mean()),       # kỳ vọng theo bội số rủi ro
+            "sum_R": float(trades["R"].sum()),         # tổng lợi thế tích luỹ (đơn vị R)
+            "avg_R": float(trades["R"].mean()),        # kỳ vọng mỗi lệnh theo bội số rủi ro
+            "max_dd_R": float((cum_R - cum_R.cummax()).min()),  # drawdown đường ∑R (đơn vị R)
             "expectancy": float(pnl.mean()),
             "avg_win": float(wins.mean()) if len(wins) else 0.0,
             "avg_loss": float(losses.mean()) if len(losses) else 0.0,
@@ -65,9 +68,9 @@ def compute(trades: pd.DataFrame, equity: pd.Series, initial_equity: float) -> d
         })
     else:
         out.update({
-            "win_rate": 0.0, "profit_factor": 0.0, "avg_R": 0.0, "expectancy": 0.0,
-            "avg_win": 0.0, "avg_loss": 0.0, "payoff_ratio": 0.0, "avg_bars_held": 0.0,
-            "max_R": 0.0, "min_R": 0.0,
+            "win_rate": 0.0, "profit_factor": 0.0, "sum_R": 0.0, "avg_R": 0.0, "max_dd_R": 0.0,
+            "expectancy": 0.0, "avg_win": 0.0, "avg_loss": 0.0, "payoff_ratio": 0.0,
+            "avg_bars_held": 0.0, "max_R": 0.0, "min_R": 0.0,
         })
     return out
 
@@ -83,14 +86,15 @@ def format_report(m: dict, title: str = "") -> str:
     label = {
         "n_trades": "Số lệnh", "total_return": "Tổng lợi nhuận", "cagr": "CAGR (năm)",
         "sharpe": "Sharpe", "max_drawdown": "Max Drawdown", "final_equity": "Vốn cuối",
-        "win_rate": "Tỷ lệ thắng", "profit_factor": "Profit Factor", "avg_R": "Kỳ vọng (R)",
+        "win_rate": "Tỷ lệ thắng", "profit_factor": "Profit Factor",
+        "sum_R": "Tổng R (∑R)", "avg_R": "Kỳ vọng (R)", "max_dd_R": "Max DD (theo R)",
         "expectancy": "Kỳ vọng ($/lệnh)", "avg_win": "Lãi TB", "avg_loss": "Lỗ TB",
         "payoff_ratio": "Payoff (lãi/lỗ)", "avg_bars_held": "Số nến giữ TB",
         "max_R": "R lớn nhất", "min_R": "R nhỏ nhất",
     }
     for k in ["n_trades", "total_return", "cagr", "sharpe", "max_drawdown", "win_rate",
-              "profit_factor", "avg_R", "expectancy", "payoff_ratio", "avg_bars_held",
-              "max_R", "min_R", "final_equity"]:
+              "profit_factor", "sum_R", "avg_R", "max_dd_R", "expectancy", "payoff_ratio",
+              "avg_bars_held", "max_R", "min_R", "final_equity"]:
         if k not in m:
             continue
         v = m[k]
