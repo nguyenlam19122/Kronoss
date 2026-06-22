@@ -1,0 +1,5 @@
+# Dữ liệu người dùng tự cung cấp & file sinh ra — không commit
+data/*.csv
+results/
+__pycache__/
+*.pyc
