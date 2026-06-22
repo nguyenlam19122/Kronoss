@@ -13,7 +13,7 @@ Bot **trend-following "gồng lệnh"** cho forex khung **H1**, gồm 2 phần d
 | **Vào lệnh** | Breakout kênh **Donchian(20)** theo chiều trend (long khi phá đỉnh, short khi phá đáy) |
 | **GỒNG LỆNH** | **Chandelier trailing stop** = `đỉnh_cao_nhất(22) − ATR(14)×3`, chỉ siết theo chiều có lợi → cho lãi chạy |
 | **Thoát** | Khi trailing stop bị chạm (mặc định để trailing tự lo, gồng dài theo trend) |
-| **Sizing** | Backtest mặc định **1R = $50 cố định** (để thống kê edge sạch); khối lượng = rủi ro ÷ khoảng dừng lỗ ATR. EA live dùng **% equity** (`RiskPercent`). |
+| **Sizing** | Backtest mặc định **1R = $50 ALL-IN** (đã gồm spread): khối lượng = rủi ro ÷ (dừng lỗ ATR **+ spread**) → lỗ tối đa mỗi lệnh khi dính stop = đúng **$50 = -1.00R**. EA live dùng **% equity** (`RiskPercent`), cũng tính spread vào sizing. |
 
 > Đặc tính trend-following: **win rate thấp (~35–45%)** nhưng **payoff cao** — cắt lỗ nhanh, gồng lãi lớn. Lãi tổng đến từ một số ít lệnh thắng đậm.
 

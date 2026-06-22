@@ -209,8 +209,10 @@ void TryEnter(double emaF1, double emaS1, double adx1, double atr1)
    bool short_sig = AllowShort && trend_dn && (close1 < dc_lower);
    if(!long_sig && !short_sig) return;
 
-   double stop_dist = atr1 * AtrStopMult;
-   double lots      = CalcLots(stop_dist);
+   double stop_dist    = atr1 * AtrStopMult;
+   double spread_price = SymbolInfoDouble(_Symbol, SYMBOL_ASK) - SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   // Sizing tinh CA spread vao rui ro -> lo toi da tai SL (da gom spread) ~ RiskPercent
+   double lots         = CalcLots(stop_dist + spread_price);
    if(lots <= 0) return;
 
    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);

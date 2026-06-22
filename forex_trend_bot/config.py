@@ -34,6 +34,6 @@ class BacktestParams:
     risk_mode: str = "fixed"    # "fixed" = 1R cố định theo $ (dễ thống kê edge); "percent" = % equity
     fixed_risk: float = 50.0    # 1R = 50$ khi risk_mode = "fixed"
     risk_pct: float = 0.01      # rủi ro mỗi lệnh = 1% equity khi risk_mode = "percent"
-    spread: float = 0.0001      # spread round-turn theo đơn vị giá (EURUSD ~1 pip = 0.0001); trừ nửa mỗi chiều
+    spread: float = 0.0001      # spread round-turn theo đơn vị giá (EURUSD ~1 pip); ĐƯỢC TÍNH TRỌN trong 1R
     allow_long: bool = True
     allow_short: bool = True

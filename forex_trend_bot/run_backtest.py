@@ -70,13 +70,14 @@ def run_one(path, sp, bp, do_plot, segments, mc_sims, validate):
     trades, equity = run_backtest(df, sp, bp)
 
     if bp.risk_mode == "fixed":
-        print(f"Chế độ rủi ro: 1R = ${bp.fixed_risk:.0f} cố định | spread = {bp.spread:g} (đã trừ vào lợi nhuận)")
+        print(f"Chế độ rủi ro: 1R = ${bp.fixed_risk:.0f} ALL-IN (đã GỒM spread) | spread = {bp.spread:g}")
+        print(f"  → lệnh dính stop ban đầu = tổng lỗ đúng ${bp.fixed_risk:.0f} (= -1.00R)")
     else:
-        print(f"Chế độ rủi ro: {bp.risk_pct:.2%} equity/lệnh | spread = {bp.spread:g} (đã trừ vào lợi nhuận)")
+        print(f"Chế độ rủi ro: {bp.risk_pct:.2%} equity/lệnh (đã gồm spread) | spread = {bp.spread:g}")
     if len(trades):
         spread_cost = float((trades["size"] * bp.spread).sum())
         extra = f"  (≈ {spread_cost / bp.fixed_risk:.1f}R)" if bp.risk_mode == "fixed" else ""
-        print(f"Tổng phí spread đã trừ        : ${spread_cost:,.2f}{extra}")
+        print(f"Tổng phí spread (nằm trong rủi ro): ${spread_cost:,.2f}{extra}")
 
     m = M.compute(trades, equity, bp.initial_equity)
     print("\n" + M.format_report(m, "HIỆU NĂNG"))

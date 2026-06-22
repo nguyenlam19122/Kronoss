@@ -46,7 +46,7 @@ def run_backtest(df: pd.DataFrame, sp: StrategyParams, bp: BacktestParams):
     index = df.index
 
     n = len(df)
-    hs = bp.spread / 2.0          # nửa spread mỗi chiều
+    spread = bp.spread            # chi phí spread round-turn (đơn vị giá) — tính TRỌN trong 1R
     cm = sp.chandelier_mult
     equity = bp.initial_equity
     equity_curve = np.full(n, bp.initial_equity, dtype=float)
@@ -73,16 +73,18 @@ def run_backtest(df: pd.DataFrame, sp: StrategyParams, bp: BacktestParams):
             if stop_dist > 0 and (long_sig or short_sig):
                 # 1R cố định theo $ (mặc định) hoặc theo % equity
                 risk_amount = bp.fixed_risk if bp.risk_mode == "fixed" else equity * bp.risk_pct
-                size = risk_amount / stop_dist
+                # Sizing tính CẢ spread vào rủi ro: lỗ tối đa tại stop ban đầu (đã gồm
+                # spread round-turn) = đúng risk_amount, vì lỗ = (stop_dist + spread) * size.
+                size = risk_amount / (stop_dist + spread)
                 entry_i = i
                 if long_sig:
                     pos = 1
-                    entry_price = o[i] + hs
+                    entry_price = o[i]
                     init_stop = entry_price - stop_dist
                     trail = init_stop
                 else:
                     pos = -1
-                    entry_price = o[i] - hs
+                    entry_price = o[i]
                     init_stop = entry_price + stop_dist
                     trail = init_stop
 
@@ -93,8 +95,8 @@ def run_backtest(df: pd.DataFrame, sp: StrategyParams, bp: BacktestParams):
                 stop = max(trail, init_stop)
                 flip = sp.exit_on_trend_flip and (ema_f[i - 1] < ema_s[i - 1])
                 if l[i] <= stop or flip:
-                    exit_price = (o[i] if flip else min(o[i], stop)) - hs
-                    pnl = (exit_price - entry_price) * size
+                    exit_price = o[i] if flip else min(o[i], stop)
+                    pnl = (exit_price - entry_price) * size - spread * size  # trừ phí spread round-turn
                     equity += pnl
                     trades.append(_record(index, entry_i, i, "long",
                                           entry_price, exit_price, size, pnl, risk_amount))
@@ -104,18 +106,18 @@ def run_backtest(df: pd.DataFrame, sp: StrategyParams, bp: BacktestParams):
                 stop = min(trail, init_stop)
                 flip = sp.exit_on_trend_flip and (ema_f[i - 1] > ema_s[i - 1])
                 if h[i] >= stop or flip:
-                    exit_price = (o[i] if flip else max(o[i], stop)) + hs
-                    pnl = (entry_price - exit_price) * size
+                    exit_price = o[i] if flip else max(o[i], stop)
+                    pnl = (entry_price - exit_price) * size - spread * size  # trừ phí spread round-turn
                     equity += pnl
                     trades.append(_record(index, entry_i, i, "short",
                                           entry_price, exit_price, size, pnl, risk_amount))
                     pos = 0
 
-        # ---------- 3) Định giá vốn theo close (mark-to-market) ----------
+        # ---------- 3) Định giá vốn theo close (mark-to-market, đã trừ phí thoát) ----------
         if pos == 1:
-            equity_curve[i] = equity + (c[i] - entry_price) * size
+            equity_curve[i] = equity + (c[i] - entry_price) * size - spread * size
         elif pos == -1:
-            equity_curve[i] = equity + (entry_price - c[i]) * size
+            equity_curve[i] = equity + (entry_price - c[i]) * size - spread * size
         else:
             equity_curve[i] = equity
 
@@ -123,11 +125,11 @@ def run_backtest(df: pd.DataFrame, sp: StrategyParams, bp: BacktestParams):
     if pos != 0:
         last = n - 1
         if pos == 1:
-            exit_price = c[last] - hs
-            pnl = (exit_price - entry_price) * size
+            exit_price = c[last]
+            pnl = (exit_price - entry_price) * size - spread * size
         else:
-            exit_price = c[last] + hs
-            pnl = (entry_price - exit_price) * size
+            exit_price = c[last]
+            pnl = (entry_price - exit_price) * size - spread * size
         equity += pnl
         trades.append(_record(index, entry_i, last, "long" if pos == 1 else "short",
                               entry_price, exit_price, size, pnl, risk_amount))
