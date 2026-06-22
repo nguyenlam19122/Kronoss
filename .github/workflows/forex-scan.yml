@@ -38,6 +38,16 @@ jobs:
           python -m trading.run_forex_scan --symbols $PAIRS \
             --interval 1d --period 10y --cost-frac 0.00005 2>&1 | tee -a forex_scan.txt || true
 
+          IDX="SPY QQQ DIA IWM"
+          echo "" | tee -a forex_scan.txt
+          echo "############### US INDEX ETFs — H1 (~2y) [mean-reversion lead] ###############" | tee -a forex_scan.txt
+          python -m trading.run_forex_scan --symbols $IDX \
+            --interval 1h --period 730d --cost-frac 0.00005 2>&1 | tee -a forex_scan.txt || true
+          echo "" | tee -a forex_scan.txt
+          echo "############### US INDEX ETFs — DAILY (~15y, multi-regime) ###############" | tee -a forex_scan.txt
+          python -m trading.run_forex_scan --symbols $IDX \
+            --interval 1d --period 15y --cost-frac 0.00003 2>&1 | tee -a forex_scan.txt || true
+
       - name: Upload scan report
         if: always()
         uses: actions/upload-artifact@v4
