@@ -11,6 +11,7 @@ on:
     paths:
       - ".github/workflows/trend-portfolio.yml"
       - "trading/run_trend_portfolio.py"
+      - "trading/run_crypto_trend.py"
 
 jobs:
   portfolio:
@@ -37,9 +38,17 @@ jobs:
           python -m trading.run_trend_portfolio --signal tsmom \
             2>&1 | tee -a trend_portfolio.txt || true
 
+      - name: Validate crypto trend edge (BTC/ETH walk-forward + random control)
+        run: |
+          set -o pipefail
+          echo "############### CRYPTO TREND VALIDATION ###############" | tee crypto_trend.txt
+          python -m trading.run_crypto_trend 2>&1 | tee -a crypto_trend.txt || true
+
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trend-portfolio-report
-          path: trend_portfolio.txt
+          path: |
+            trend_portfolio.txt
+            crypto_trend.txt
