@@ -6,16 +6,27 @@ A faithful MetaTrader 5 replication of the strategy in:
 > **Forecast-to-Fill: Benchmark-Neutral Alpha and Billion-Dollar Capacity in Gold Futures (2015–2025).**
 > arXiv:2511.08571v1 [q-fin.TR].
 
-The EA reproduces, step for step, the paper's **daily-bar, long-only trend +
-momentum** pipeline so you can backtest it in the MT5 Strategy Tester and run it
-on demo/live. File: [`ForecastToFill_FTF.mq5`](ForecastToFill_FTF.mq5).
+The EA reproduces, step for step, the paper's long-only trend + momentum
+pipeline so you can backtest it in the MT5 Strategy Tester and run it on
+demo/live. File: [`ForecastToFill_FTF.mq5`](ForecastToFill_FTF.mq5).
+
+> **This build runs NATIVE on H1** (`InpTimeframe = PERIOD_H1`). The paper is a
+> *daily* strategy; here every period parameter is in **bar units** (momentum
+> `K=50` bars ≈ 50 hours, ATR `14` bars, timeout `30` bars) and volatility is
+> annualized with `InpBarsPerYear` (H1 ≈ 6048). It keeps the paper's full
+> **structure** but on H1 it is a faster, short-horizon variant — **not** the
+> paper's daily-close edge. To recover the exact paper strategy, set
+> `InpTimeframe = PERIOD_D1` and `InpBarsPerYear = 252`.
 
 ---
 
 ## 1. What the strategy does (paper → code map)
 
 Every block below is implemented in `ProcessBar()` / `Retrain()` and runs **once
-per completed D1 bar**.
+per completed bar of `InpTimeframe`** (H1 by default). In the table, durations
+written as "days" are the paper's daily units; in this build they are **bars**
+(so `K=50` and `timeout=30` mean 50 and 30 H1 bars), and `√252` becomes
+`√InpBarsPerYear`.
 
 | Paper section | Step | Code |
 |---|---|---|
@@ -29,7 +40,7 @@ per completed D1 bar**.
 | 4.2 | Confidence shaping `w_conf = w_vol · (p_bull−0.5)/0.5` | `conf`, `w_conf` |
 | 4.3 / 7 | Friction-adjusted Kelly: solve `2σ²x² + 3γn^{3/2}x − 2(μ−nk) = 0`, `f* = x²`; fractional `f̃ = λ_Kelly·f*`, `λ_Kelly=0.4` | `KellyFStar()`, `ftilde` |
 | 4.4 / 7.1 | Final weight `w_t = f̃·w_conf` (baseline `0.25·w_conf` when `f*≈0`), capped at `W_max` | `w_target` |
-| 2.2 / 5 | **Walk-forward freeze**: every `InpRetrainDays` bars, re-estimate `μ_train, σ_train, (μ,σ)` from the trailing `InpTrainYears` of D1 history, forward-only | `Retrain()` |
+| 2.2 / 5 | **Walk-forward freeze**: every `InpRetrainBars` bars, re-estimate `μ_train, σ_train, (μ,σ)` from the trailing `InpTrainYears` of history on `InpTimeframe`, forward-only | `Retrain()` |
 | 4.5 / 10 | Capacity note: largest `L>0` with `g(L)=0` (printed to the log, informational) | `Lmax` in `Retrain()` |
 
 Position sizing converts the dimensionless weight `w_t` (notional per \$1 of
@@ -46,17 +57,19 @@ to the symbol's volume step.
 2. Open it in **MetaEditor** and press **Compile** (F7). It should compile with 0
    errors. *(MQL5 can only be compiled inside MetaTrader/MetaEditor — there is no
    Linux/CI compiler, so the source here has been reviewed by hand.)*
-3. Attach the EA to a **Gold, D1** chart (e.g. `XAUUSD`, or your broker's GC
-   contract). The EA always pulls D1 data internally, but a D1 chart is clearest.
-4. Make sure the chart symbol has **enough D1 history** loaded — scroll back so
-   the terminal downloads several years (ideally the full 10-year training
-   window). With less history the EA degrades gracefully (it trains on whatever
-   is available).
+3. Attach the EA to a **Gold, H1** chart (e.g. `XAUUSD`, or your broker's GC
+   contract). The EA reads `InpTimeframe` (H1) data internally, but a matching
+   chart is clearest. (To run the original daily strategy, set
+   `InpTimeframe = PERIOD_D1` and `InpBarsPerYear = 252`.)
+4. Make sure the symbol has **enough H1 history** loaded — scroll back so the
+   terminal downloads as much as your broker provides. The 10-year training
+   window (`InpTrainYears`) is automatically **clamped to available history**, so
+   limited H1 data is fine; the EA trains on whatever exists.
 
 **Backtest:** open the **Strategy Tester**, pick the EA, symbol `XAUUSD`,
-timeframe `D1`, model **"Open prices only"** (the logic is close-to-close daily,
-so this is exact and fast), and a date range with 10+ years of preceding history
-for training.
+timeframe `H1`, model **"Open prices only"** (the logic is close-to-close per
+bar, so this is exact and fast). Note H1 trades far more often than D1, so set a
+realistic **spread/commission** — execution cost matters much more here.
 
 > **Account type:** use a **NETTING** account (Tools → Options → or a netting
 > demo). The EA manages a single net long position; hedging accounts will warn in
@@ -64,28 +77,30 @@ for training.
 
 ---
 
-## 3. Inputs (defaults = paper values)
+## 3. Inputs (defaults = paper values, adapted to H1 bars)
 
-| Input | Default | Paper |
+| Input | Default | Notes |
 |---|---|---|
-| `InpLambda` | 0.90 | EMA λ — *the paper tunes this per window and never prints the value; 0.90 is a sensible mid-grid default. This is your main signal-speed knob.* |
-| `InpMomK` | 50 | momentum window `K=50` |
+| `InpTimeframe` | `PERIOD_H1` | Bars the EA operates on. Set `PERIOD_D1` for the exact paper strategy. |
+| `InpLambda` | 0.90 | EMA λ — *the paper tunes this per window and never prints the value; 0.90 is a sensible default. Your main signal-speed knob (now per H1 bar).* |
+| `InpMomK` | 50 | momentum window `K=50` **bars** (≈50 h on H1) |
 | `InpOmega` | 0.60 | blend weight `ω=0.6` |
 | `InpActThreshold` | 0.52 | activation `p_bull ≥ 0.52` |
-| `InpAtrN` | 14 | ATR period |
+| `InpAtrN` | 14 | ATR period (bars) |
 | `InpHardStopMult` / `InpTrailMult` | 2.0 / 1.5 | stop multiples |
-| `InpMaxAgeDays` | 30 | timeout |
+| `InpMaxAgeBars` | 30 | timeout, in **bars** (was 30 days) |
 | `InpBearDerisk` | 0.50 | de-risk threshold |
 | `InpTargetVolAnn` | 0.15 | 15% vol target |
-| `InpEwmaTheta` | 0.94 | RiskMetrics EWMA decay (paper says "20-day EWMA"; 0.94 is the cited RiskMetrics standard — tune to taste) |
+| `InpBarsPerYear` | 6048 | annualization factor. **H1 ≈ 24·252 = 6048**; use 252 for D1. Mainly sets the absolute leverage level. |
+| `InpEwmaTheta` | 0.94 | RiskMetrics EWMA decay (tune to taste; per-bar now) |
 | `InpWmax` | 2.0 | leverage cap |
 | `InpKelly` | 0.40 | fractional Kelly `λ_Kelly` |
 | `InpCostK_bps` | 0.7 | linear cost `k` (used **only** inside Kelly) |
 | `InpGamma` | 0.02 | impact `γ` (used **only** inside Kelly) |
-| `InpN_RoundTrips` | 1.0 | `n ≤ 1` round trip/day |
+| `InpN_RoundTrips` | 1.0 | `n ≤ 1` round trip/bar |
 | `InpBaselineFrac` | 0.25 | baseline allocation when `f*≈0` |
-| `InpTrainYears` | 10 | training lookback |
-| `InpRetrainDays` | 21 | re-freeze cadence (~monthly walk-forward step) |
+| `InpTrainYears` | 10 | training lookback (× `InpBarsPerYear`, clamped to available history) |
+| `InpRetrainBars` | 504 | re-freeze cadence in **bars** (≈ monthly: 21·24 on H1) |
 | `InpExposureScale` | **1.0** | see caveat below |
 
 ---
@@ -95,6 +110,15 @@ for training.
 These are honest notes so your experiments aren't misled. The EA reproduces the
 paper's **logic** exactly; it cannot reproduce the paper's **dataset** or fix the
 issues baked into the paper's own reporting.
+
+0. **On H1 this is NOT the paper's strategy.** The paper's measured edge — the
+   2.88 Sharpe, the bootstrap CIs, the regime attribution — is for **daily**
+   gold close-to-close trend persistence over 2015–2025. This native-H1 build
+   keeps the same *structure* but applies it to 50-bar / 14-bar / 30-bar hourly
+   horizons, which is a different (much faster, higher-turnover) strategy whose
+   behaviour you must validate yourself. None of the paper's reported numbers
+   carry over to H1. If you want to reproduce the paper, run it on `PERIOD_D1`
+   with `InpBarsPerYear = 252`.
 
 1. **The "43%/yr, Sharpe 2.88" headline is a hypothetical re-scaling, not the
    strategy as it actually trades.** The realized strategy in the paper runs at

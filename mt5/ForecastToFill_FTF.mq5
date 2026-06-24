@@ -21,15 +21,23 @@
 //|    9. Friction-adjusted Kelly fraction    -> paper Sec 4.3 / 7    |
 //|   10. Weight -> executable position size  -> paper Sec 4.4 / 7.1  |
 //|                                                                   |
-//|  Walk-forward discipline (paper Sec 2.2, 5): every InpRetrainDays |
+//|  Walk-forward discipline (paper Sec 2.2, 5): every InpRetrainBars |
 //|  bars the EA re-estimates and "freezes" the train-window stats    |
 //|  (mu_train, sigma_train for the z-score; mu, sigma^2 for Kelly)   |
-//|  from the trailing InpTrainYears of D1 history, forward-only.     |
+//|  from the trailing history on InpTimeframe, forward-only.         |
+//|                                                                   |
+//|  TIMEFRAME: this build runs NATIVE on InpTimeframe (default H1).  |
+//|  All period parameters are in BAR units (momentum K=50 bars, ATR  |
+//|  14 bars, timeout 30 bars) and volatility is annualized with      |
+//|  InpBarsPerYear. On H1 this is a faster, short-horizon variant --  |
+//|  it keeps the paper's STRUCTURE but is no longer the paper's      |
+//|  daily-close edge. Set InpTimeframe=PERIOD_D1 + InpBarsPerYear=252 |
+//|  to recover the exact daily strategy.                             |
 //|                                                                   |
 //|  NOTE: live brokers charge real spread/commission, so the paper's |
 //|  k (0.7 bps) and gamma (0.02) are used ONLY inside the Kelly      |
 //|  sizing math here (as the paper intends), not added synthetically |
-//|  to fills. Use a NETTING account. Designed for the D1 timeframe.  |
+//|  to fills. Use a NETTING account.                                 |
 //+------------------------------------------------------------------+
 #property copyright "Replication of arXiv:2511.08571v1"
 #property link      "https://arxiv.org/abs/2511.08571"
@@ -41,9 +49,12 @@
 //==================================================================
 //  INPUTS
 //==================================================================
+input group "=== Timeframe (NATIVE H1 build) ==="
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H1; // Bars the EA operates on. Paper is daily; for the exact paper set PERIOD_D1.
+
 input group "=== Signal: trend EMA & momentum (paper Sec 3.2-3.4) ==="
 input double InpLambda        = 0.90;   // EMA lambda: y~_t = lambda*y~_{t-1}+(1-lambda)*y_t (larger=slower). Paper tunes per window.
-input int    InpMomK          = 50;     // Momentum lookback K (days). Paper: K=50
+input int    InpMomK          = 50;     // Momentum lookback K (bars). Paper: K=50
 input double InpOmega         = 0.60;   // Blend weight omega on trend vs momentum. Paper: 0.60
 input double InpActThreshold  = 0.52;   // Activation threshold on p_bull. Paper: 0.52
 
@@ -51,12 +62,12 @@ input group "=== Exits: ATR stops & timeout (paper Sec 3.5) ==="
 input int    InpAtrN          = 14;     // ATR period (simple mean). Paper: n=14
 input double InpHardStopMult  = 2.0;    // Hard stop = P_ent - mult*ATR. Paper: 2.0
 input double InpTrailMult     = 1.5;    // Trailing stop = peak - mult*ATR. Paper: 1.5
-input int    InpMaxAgeDays    = 30;     // Max holding age in trading days. Paper: 30
+input int    InpMaxAgeBars    = 30;     // Max holding age in BARS. Paper: 30 (days on D1; here bars of InpTimeframe)
 input double InpBearDerisk    = 0.50;   // De-risk when p_bear > this. Paper: 0.50
 
 input group "=== Volatility targeting (paper Sec 4.1) ==="
 input double InpTargetVolAnn  = 0.15;   // Annualized vol target. Paper: 15%
-input int    InpAnnDays       = 252;    // Trading days per year. Paper: D=252
+input int    InpBarsPerYear   = 6048;   // Bars per year for annualization. H1~=24*252=6048; D1=252 (paper)
 input double InpEwmaTheta     = 0.94;   // EWMA variance decay theta (RiskMetrics). sigma2_{t+1}=theta*sigma2_t+(1-theta)*r_t^2
 input double InpWmax          = 2.0;    // Leverage cap W_max on the weight. Paper: 2.0
 
@@ -64,18 +75,18 @@ input group "=== Friction-adjusted Kelly (paper Sec 4.3 / 7) ==="
 input double InpKelly         = 0.40;   // Fractional-Kelly multiplier lambda_Kelly. Paper: 0.40
 input double InpCostK_bps     = 0.7;    // Linear round-trip cost k in bps, used in Kelly. Paper: 0.7 bps
 input double InpGamma         = 0.02;   // Square-root impact parameter gamma, used in Kelly. Paper: 0.02
-input double InpN_RoundTrips  = 1.0;    // n round trips/day in Kelly. Paper: n=1
+input double InpN_RoundTrips  = 1.0;    // n round trips/bar in Kelly. Paper: n=1
 input double InpBaselineFrac  = 0.25;   // Baseline = frac * regime-scaled budget when f~0. Paper: 0.25
 input bool   InpBaselineUsesConf = true;// true: baseline=0.25*w_conf (Sec 4.3 "regime-scaled"); false: 0.25*w_vol (Sec 7.1)
 
 input group "=== Walk-forward training (paper Sec 2.2 / 5) ==="
-input int    InpTrainYears    = 10;     // Training lookback in years. Paper: 10
-input int    InpRetrainDays   = 21;     // Re-freeze train stats every N bars (~monthly). Paper advances monthly.
+input int    InpTrainYears    = 10;     // Training lookback in years (clamped to available history). Paper: 10
+input int    InpRetrainBars   = 504;    // Re-freeze train stats every N bars (~monthly: 21*24 on H1). Paper advances monthly.
 
 input group "=== Execution / position sizing (paper Sec 4.4 / 7.1) ==="
 input double InpExposureScale = 1.0;    // Multiplier on final weight. 1.0=as-written (realized vol ~0.91%). ~16.5 emulates the paper's 15%-vol / 43%/yr headline.
 input bool   InpAllowMinLot   = true;   // If target lots < broker min but weight>0, trade the min lot.
-input double InpRebalanceBand = 0.0;    // Min |delta lots| to act on (0 = use 1 volume step). Reduces churn from daily vol-target rebalancing.
+input double InpRebalanceBand = 0.0;    // Min |delta lots| to act on (0 = use 1 volume step). Reduces churn from per-bar vol-target rebalancing.
 input long   InpMagic         = 8508711;// EA magic number
 input int    InpDeviation     = 30;     // Max price deviation (points)
 input bool   InpVerbose       = true;   // Print signal/sizing diagnostics each bar
@@ -85,7 +96,7 @@ input bool   InpVerbose       = true;   // Print signal/sizing diagnostics each 
 //==================================================================
 CTrade   trade;
 
-// Frozen (walk-forward) parameters -- re-estimated every InpRetrainDays bars
+// Frozen (walk-forward) parameters -- re-estimated every InpRetrainBars bars
 double   g_muTrain   = 0.0;     // mean of slope over training window
 double   g_sigTrain  = 1.0;     // std  of slope over training window
 double   g_kMu       = 0.0;     // Kelly mu: mean active-day unit-notional return
@@ -99,7 +110,7 @@ bool     g_haveVarSeed = false;
 
 // Bar bookkeeping
 datetime g_lastBarTime = 0;
-long     g_barCounter  = 0;     // increments each processed D1 bar (for trade age)
+long     g_barCounter  = 0;     // increments each processed bar (for trade age)
 
 // Open-position record (reconstructed on restart if needed)
 bool     g_inPos       = false;
@@ -215,9 +226,9 @@ void ConfigureFilling()
 //    * EWMA variance seed     : Var_train(simple returns)             (Sec 4.1)
 void Retrain(const double &close[], const double &slope[], const double &ema[], const int N)
 {
-   int trainDays = InpTrainYears * InpAnnDays;
+   int trainBars = InpTrainYears * InpBarsPerYear;
    int minStart  = InpMomK + InpAtrN + 2;          // need history for momentum/ATR/return
-   int s = N - 1 - trainDays;
+   int s = N - 1 - trainBars;
    if(s < minStart) s = minStart;                  // clamp to available history
    int e = N - 1;                                  // newest completed bar
 
@@ -297,21 +308,22 @@ void Retrain(const double &close[], const double &slope[], const double &ema[], 
 }
 
 //==================================================================
-//  PER-BAR PROCESSING (runs once per completed D1 bar)
+//  PER-BAR PROCESSING (runs once per completed bar of InpTimeframe)
 //==================================================================
 void ProcessBar()
 {
-   // ---- pull enough completed D1 history (skip the forming bar at shift 0) ----
-   int trainDays = InpTrainYears * InpAnnDays;
-   int need = trainDays + InpMomK + InpAtrN + 10;
-   if(need > 50000) need = 50000;
+   // ---- pull enough completed history (skip the forming bar at shift 0) ----
+   int trainBars = InpTrainYears * InpBarsPerYear;
+   int need = trainBars + InpMomK + InpAtrN + 10;
+   if(need > 120000) need = 120000;                // cap; broker returns what history it has
 
    MqlRates rates[];
    ArraySetAsSeries(rates, false);                 // ascending: [0]=oldest
-   int got = CopyRates(_Symbol, PERIOD_D1, 1, need, rates);
+   int got = CopyRates(_Symbol, InpTimeframe, 1, need, rates);
    if(got < InpMomK + InpAtrN + 5)
    {
-      if(InpVerbose) PrintFormat("[FTF] not enough D1 history yet (got=%d)", got);
+      if(InpVerbose) PrintFormat("[FTF] not enough %s history yet (got=%d)",
+                                 EnumToString(InpTimeframe), got);
       return;
    }
    int N = got;
@@ -333,7 +345,7 @@ void ProcessBar()
    }
 
    // ---- (re)freeze train-window parameters on schedule ----
-   if(!g_trained || g_barsSinceRetrain >= InpRetrainDays)
+   if(!g_trained || g_barsSinceRetrain >= InpRetrainBars)
       Retrain(close, slope, ema, N);
 
    int t = N-1;                                    // newest completed bar index
@@ -364,7 +376,7 @@ void ProcessBar()
    double atr = atrSum/InpAtrN;
 
    // ---- volatility targeting -> w_vol (paper Sec 4.1) ----
-   double sigmaStar = InpTargetVolAnn/MathSqrt((double)InpAnnDays);   // daily target
+   double sigmaStar = InpTargetVolAnn/MathSqrt((double)InpBarsPerYear); // per-bar target
    double w_vol = MathMin(InpWmax, sigmaStar/MathMax(sigmaHat,1.0e-12));
 
    // ---- confidence shaping -> w_conf (paper Sec 4.2) ----
@@ -436,7 +448,7 @@ void ProcessBar()
 
       bool exitHard  = (close[t] <= hardStop);
       bool exitTrail = (close[t] <= trailStop);
-      bool exitTime  = (age >= InpMaxAgeDays);
+      bool exitTime  = (age >= InpMaxAgeBars);
 
       if(exitHard || exitTrail || exitTime)
       {
@@ -452,7 +464,7 @@ void ProcessBar()
       else
       {
          g_halvedOnce = false;                  // regime recovered
-         desiredWeight = w_target;              // daily vol-target rebalance
+         desiredWeight = w_target;              // per-bar vol-target rebalance
          action = "HOLD/rebalance";
       }
    }
@@ -498,7 +510,7 @@ void ProcessBar()
                   action, pbull, ptrend, mom, sl, sigmaHat, w_vol, w_conf, fstar, w_target, atr, targetLots, netLong);
 
    Comment(StringFormat(
-      "Forecast-to-Fill (FTF) | %s D1\n"
+      "Forecast-to-Fill (FTF) | %s %s\n"
       "-----------------------------------\n"
       "p_bull=%.3f  p_trend=%.3f  mom=%.0f  (act>=%.2f)\n"
       "slope=%.3e  z=%.2f\n"
@@ -506,10 +518,10 @@ void ProcessBar()
       "Kelly f*=%.3e  f~=%.3e  ->  w_target=%.4f (scale x%.1f)\n"
       "ATR(%d)=%.2f  state=%s  netLots=%.2f  tgtLots=%.2f\n"
       "trained=%s  barsSinceRetrain=%d",
-      _Symbol,
+      _Symbol, EnumToString(InpTimeframe),
       pbull, ptrend, mom, InpActThreshold,
       sl, z,
-      sigmaHat*MathSqrt((double)InpAnnDays)*100.0, w_vol, conf, w_conf,
+      sigmaHat*MathSqrt((double)InpBarsPerYear)*100.0, w_vol, conf, w_conf,
       fstar, ftilde, w_target, InpExposureScale,
       InpAtrN, atr, action, netLong, targetLots,
       (g_trained?"yes":"no"), g_barsSinceRetrain));
@@ -525,9 +537,10 @@ int OnInit()
    trade.SetMarginMode();
    ConfigureFilling();
 
-   if(_Period != PERIOD_D1)
-      Print("[FTF] WARNING: chart timeframe is not D1. The EA always uses D1 data, ",
-            "but attaching it to a D1 chart is recommended for clarity.");
+   if(_Period != InpTimeframe)
+      Print("[FTF] NOTE: chart timeframe differs from InpTimeframe (",
+            EnumToString(InpTimeframe), "). The EA uses InpTimeframe data regardless; ",
+            "attaching it to a matching chart is recommended for clarity.");
 
    long mm = (long)AccountInfoInteger(ACCOUNT_MARGIN_MODE);
    if(mm == ACCOUNT_MARGIN_MODE_RETAIL_HEDGING)
@@ -538,7 +551,8 @@ int OnInit()
    g_trained = false;
    g_haveVarSeed = false;
    g_inPos = (NetLong() > 0.0);
-   Print("[FTF] initialized. Replicating arXiv:2511.08571v1 on ", _Symbol, ".");
+   Print("[FTF] initialized. Replicating arXiv:2511.08571v1 on ", _Symbol,
+         " / ", EnumToString(InpTimeframe), " (native-bar build).");
    return(INIT_SUCCEEDED);
 }
 
@@ -549,8 +563,8 @@ void OnDeinit(const int reason)
 
 void OnTick()
 {
-   // run once per completed D1 bar
-   datetime curBar = iTime(_Symbol, PERIOD_D1, 0);
+   // run once per completed bar of InpTimeframe
+   datetime curBar = iTime(_Symbol, InpTimeframe, 0);
    if(curBar == g_lastBarTime) return;
    g_lastBarTime = curBar;
 
