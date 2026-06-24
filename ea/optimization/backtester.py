@@ -55,7 +55,7 @@ class IndicatorCache:
     """Tính & cache Donchian(len) và ATR(period) trên TOÀN dataset (tính 1 lần, dùng lại)."""
     def __init__(self, arr):
         self.h = arr["high"]; self.l = arr["low"]; self.c = arr["close"]
-        self._donch = {}; self._atr = {}
+        self._donch = {}; self._atr = {}; self._adx = {}
 
     def donchian(self, length):
         if length not in self._donch:
@@ -77,6 +77,41 @@ class IndicatorCache:
                     atr[i] = atr[i - 1] * (1 - a) + tr[i] * a
             self._atr[period] = atr
         return self._atr[period]
+
+    def adx(self, period):
+        """ADX (Wilder) tinh tren toan dataset, cache theo period."""
+        if period not in self._adx:
+            h, l, c = self.h, self.l, self.c
+            n = len(c)
+            tr = np.zeros(n); pdm = np.zeros(n); mdm = np.zeros(n)
+            for i in range(1, n):
+                up = h[i] - h[i - 1]; dn = l[i - 1] - l[i]
+                pdm[i] = up if (up > dn and up > 0.0) else 0.0
+                mdm[i] = dn if (dn > up and dn > 0.0) else 0.0
+                tr[i] = max(h[i] - l[i], abs(h[i] - c[i - 1]), abs(l[i] - c[i - 1]))
+            adx = np.full(n, np.nan)
+            if n > 2 * period + 1:
+                str_ = tr[1:period + 1].sum()
+                spd = pdm[1:period + 1].sum()
+                smd = mdm[1:period + 1].sum()
+                dx = np.full(n, np.nan)
+                a = 1.0 / period
+                for i in range(period, n):
+                    if i > period:                      # Wilder smoothing
+                        str_ = str_ - str_ * a + tr[i]
+                        spd = spd - spd * a + pdm[i]
+                        smd = smd - smd * a + mdm[i]
+                    pdi = 100.0 * spd / str_ if str_ > 0 else 0.0
+                    mdi = 100.0 * smd / str_ if str_ > 0 else 0.0
+                    s = pdi + mdi
+                    dx[i] = 100.0 * abs(pdi - mdi) / s if s > 0 else 0.0
+                first = 2 * period
+                if first < n:
+                    adx[first] = np.mean(dx[period:first + 1])
+                    for i in range(first + 1, n):
+                        adx[i] = adx[i - 1] * (1 - a) + dx[i] * a
+            self._adx[period] = adx
+        return self._adx[period]
 
 
 # --------------------------------------------------------------------- numba engine

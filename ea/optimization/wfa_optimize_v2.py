@@ -39,6 +39,7 @@ FIXED = {
     "sl_mode": 0, "sl_atr_mult": 1.5, "min_sl_pips": 5.0,
     "trail_mode": 0, "exit_opp": 1, "exit_cloud": 0,
     "use_cloud": 1, "require_color": 0,
+    "use_adx": 0, "adx_min": 0.0, "adx_period": 14,
     "risk": RISK_USD, "commission": 0.0,
 }
 
@@ -173,14 +174,21 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--trail_mode", type=int, default=0)  # 0=none(gong) 1=SlowTrail 2=FastTrail 3=Kijun
     ap.add_argument("--tp", default="opt")  # "opt"=toi uu tp_rr | so co dinh (vd "0"=gong thuan)
+    ap.add_argument("--adx_min", type=float, default=0.0)  # >0 = bat loc ADX (chi trade khi ADX>=nguong)
+    ap.add_argument("--adx_period", type=int, default=14)
     ap.add_argument("--outdir", default=os.path.join(os.path.dirname(__file__), "results_v2"))
     args = ap.parse_args()
 
     random.seed(args.seed); np.random.seed(args.seed)
     os.makedirs(args.outdir, exist_ok=True)
 
-    # ap dung cau hinh TP / trailing cho lan chay nay
+    # ap dung cau hinh TP / trailing / ADX cho lan chay nay
     FIXED["trail_mode"] = args.trail_mode
+    if args.adx_min > 0:
+        FIXED["use_adx"] = 1
+        FIXED["adx_min"] = args.adx_min
+        FIXED["adx_period"] = args.adx_period
+        print(f"  Loc ADX: BAT, ADX({args.adx_period}) >= {args.adx_min}")
     if args.tp != "opt":
         fix_tp = float(args.tp)
         GENES.pop("tp_rr", None)          # bo tp_rr khoi GA (co dinh)
@@ -303,6 +311,7 @@ def write_report(results, s_opt, s_def, outdir):
          (lambda tp, tm: f"**Cau hinh:** "
           + ("gong loi (TP=0)" if tp == 0 else (f"TP co dinh {tp}R" if tp is not None else "TP toi uu trong GA"))
           + ", trailing = " + {0: "khong/gong", 1: "Slow Trail", 2: "Fast Trail", 3: "Kijun"}.get(tm, str(tm))
+          + (f", loc ADX({FIXED['adx_period']})>={FIXED['adx_min']:.0f}" if FIXED.get("use_adx") else ", khong loc ADX")
           + f".  **GA toi uu {len(GENES)} tham so:** " + ", ".join(GENES)
           + " (Ichimoku 9/26/52 co dinh de chong overfitting).\n"
          )(FIXED.get("tp_rr"), FIXED["trail_mode"]),

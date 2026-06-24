@@ -46,8 +46,8 @@ def _ct(c, cp, prev, sl):
 
 @njit(cache=True, fastmath=True)
 def _run_v2(open_, high, low, close, spread,
-            tenkan, kijun, spanB_raw, atr1, atr2, disp,
-            fast_mult, slow_mult, use_cloud, require_color,
+            tenkan, kijun, spanB_raw, atr1, atr2, adx, disp,
+            fast_mult, slow_mult, use_cloud, require_color, use_adx, adx_min,
             sl_mode, sl_atr_mult, min_sl_dist, tp_rr, trail_mode,
             exit_opp, exit_cloud, risk, commission, start_balance,
             seed_start, start_idx, end_idx):
@@ -144,6 +144,10 @@ def _run_v2(open_, high, low, close, spread,
                         short_ok = short_ok and (sa < sb)
                     else:
                         long_ok = False; short_ok = False
+                if use_adx == 1:                       # loc che do thi truong: chi trade khi co trend
+                    av = adx[k]
+                    if np.isnan(av) or av < adx_min:
+                        long_ok = False; short_ok = False
 
                 if long_ok or short_ok:
                     is_long = long_ok
@@ -238,6 +242,7 @@ def backtest_v2(arr, cache, p, start_idx, end_idx, start_balance):
     disp   = int(p["displacement"])
     atr1   = cache.atr(int(p["fast_period"]))
     atr2   = cache.atr(int(p["slow_period"]))
+    adx    = cache.adx(int(p.get("adx_period", 14)))
 
     warmup = max(int(p["tenkan"]), int(p["kijun"]), int(p["spanB"])) + disp + 3
     eff_start = max(start_idx, warmup)
@@ -252,9 +257,10 @@ def backtest_v2(arr, cache, p, start_idx, end_idx, start_balance):
     min_sl_dist = p["min_sl_pips"] * pip
 
     return _run_v2(arr["open"], arr["high"], arr["low"], arr["close"], arr["spread"],
-                   tenkan, kijun, spanB, atr1, atr2, disp,
+                   tenkan, kijun, spanB, atr1, atr2, adx, disp,
                    float(p["fast_mult"]), float(p["slow_mult"]),
                    int(p["use_cloud"]), int(p["require_color"]),
+                   int(p.get("use_adx", 0)), float(p.get("adx_min", 0.0)),
                    int(p["sl_mode"]), float(p["sl_atr_mult"]), float(min_sl_dist),
                    float(p["tp_rr"]), int(p["trail_mode"]),
                    int(p["exit_opp"]), int(p["exit_cloud"]),
