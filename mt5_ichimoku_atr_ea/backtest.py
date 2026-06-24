@@ -37,11 +37,11 @@ SLOW_ATR_MULT   = 3.0
 USE_CLOUD_FILTER    = True    # gia phai ra ngoai may moi vao lenh
 REQUIRE_CLOUD_COLOR = False   # mau may trung huong
 
-# --- Cau hinh KHUYEN NGHI de gong theo xu huong (tot nhat tren data 2025) ---
-TAKE_PROFIT_RR      = 0.0     # TP theo R (0 = KHONG TP -> gong theo trend)
-TRAIL_MODE          = "none"  # none|slow|fast|kijun. 'none' = giu den khi ATR dao chieu
+# --- Cau hinh MAC DINH = toi uu+on dinh nhat tren data 2025 ("gong co tran 3R") ---
+TAKE_PROFIT_RR      = 3.0     # TP theo R (3R toi uu; dat 0 = gong thuan, khong tran)
+TRAIL_MODE          = "none"  # none|slow|fast|kijun. 'none' = khong doi SL bam theo
 EXIT_ON_CLOUD_BREAK = False   # dong khi gia dong cua quay lai trong/qua may
-EXIT_ON_OPPOSITE    = True    # dong khi co tin hieu ATR nguoc (= tin hieu dao trend)
+EXIT_ON_OPPOSITE    = True    # dong khi co tin hieu ATR nguoc (= thoat som neu trend gay)
 
 SL_MIN_PIPS         = 5.0     # khoang cach SL toi thieu (pips)
 RISK_MONEY          = 50.0    # 1R = 50$ (DA bao gom chi phi)

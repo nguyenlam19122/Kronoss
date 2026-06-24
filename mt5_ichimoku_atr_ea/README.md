@@ -2,7 +2,7 @@
 
 EA (Expert Advisor) cho MetaTrader 5, xây dựng từ 2 indicator TradingView bạn cung cấp:
 **Ichimoku Cloud** và **ATR Trailing Stop (ceyhun)** — quản lý vốn rủi ro cố định **1R = 50$ (đã gồm spread + commission)**,
-mặc định **gồng theo xu hướng** (không TP cố định, thoát khi ATR đảo chiều).
+mặc định **"gồng có trần 3R"**: bám trend, chốt khi đạt +3R, hoặc thoát sớm khi ATR đảo chiều nếu trend gãy trước đó.
 
 > File chính: [`Ichimoku_ATR_EA.mq5`](./Ichimoku_ATR_EA.mq5)
 > Backtest kiểm chứng (Python): [`backtest.py`](./backtest.py) · [`sweep.py`](./sweep.py)
@@ -27,16 +27,17 @@ indicator một vai trò rõ ràng (đây là cách phối hợp kinh điển: 1
 - **SHORT (Bán):** có tín hiệu Sell của ATR (`Trail1` cắt xuống `Trail2`) **VÀ** giá đóng cửa nằm **dưới** mây Kumo.
 - Tín hiệu chỉ được tính trên **nến đã đóng** → **không repaint**, không vào lệnh giữa nến.
 
-### Stop Loss & "gồng" theo xu hướng (Take Profit)
+### Stop Loss & cách thoát lệnh "gồng có trần 3R"
 
 - **SL** = giá trị **Slow Trail (Trail2)** tại thời điểm vào lệnh (có khoảng cách tối thiểu để tránh lot quá lớn).
   Đây chính là khoảng cách định nghĩa **1R**.
-- **Thoát lệnh (mặc định = GỒNG theo trend):** **KHÔNG đặt TP cố định**, giữ lệnh chạy cho tới khi
-  **ATR Trailing Stop đảo chiều** (`Trail1` cắt ngược `Trail2`) — đó chính là tín hiệu trend đã quay đầu.
-  Cách này để **lệnh thắng chạy dài** (backtest có lệnh ăn tới **+4.5R**) trong khi lệnh thua vẫn bị chặn ở đúng 1R.
+- **Thoát lệnh (mặc định `InpTakeProfitRR = 3.0`):** vẫn **bám trend** nhưng có **trần lời ở +3R** — chốt khi đạt 3R,
+  hoặc thoát sớm khi **ATR Trailing Stop đảo chiều** (`Trail1` cắt ngược `Trail2`) nếu trend gãy trước khi chạm 3R.
+  Backtest cho thấy mức trần ~3R **tối ưu nhất** (xem mục 4): năm 2025 giá hay quay đầu sau ~3R nên "gồng" không trần
+  bị trả lại lời. Đặt `InpTakeProfitRR = 0` nếu muốn **gồng thuần** (không trần, chỉ thoát khi ATR đảo chiều).
 - Vì sao **không** dùng trailing-stop bám sát giá? Vì Slow Trail (3×ATR) quá lỏng, còn Fast Trail/Kijun lại quá chặt —
-  cả hai đều **bóp** đà của trend và làm giảm lời (xem bảng mục 2). Để trend tự chạy đến khi hệ thống báo đảo là tốt nhất.
-- Tùy chọn khác (có thể bật trong Inputs): TP cố định theo R, dời SL theo Slow/Fast/Kijun, hoặc thoát khi giá phá mây.
+  cả hai đều **bóp** đà của trend và làm giảm lời (xem bảng mục 2).
+- Tùy chọn khác (có thể bật trong Inputs): dời SL theo Slow/Fast/Kijun (`InpTrailMode`), hoặc thoát khi giá phá mây.
 
 ### Position sizing — cốt lõi của "1R = 50$ (đã gồm spread)"
 
@@ -58,11 +59,12 @@ Dữ liệu: **EURUSD H1, 2025.01.01 → 2025.12.31 (6.214 nến)**. Lời/lỗ 
 **đã mô phỏng spread thật** (lấy từ cột `<SPREAD>` của từng nến trong file của bạn).
 
 ```
->>> CÓ TP CỐ ĐỊNH (tham khảo)         | lệnh | win   | tổng lời        | PF   | DD     | lệnh thắng to nhất
+>>> GỒNG CÓ TRẦN TP (thoát ở TP hoặc khi ATR đảo | lệnh | win   | tổng lời        | PF   | DD     | thắng to nhất
+TP = 3R  ★ MẶC ĐỊNH (tối ưu+ổn định) |  67  | 43.3% | +24.01R (+1201$)| 1.87 | 3.72R  | +3.0R
+  └ trên + commission 0.7pip (~7$/lot)|  67  | 43.3% | +21.72R (+1086$)| 1.79 | 3.74R  | +3.0R
 TP = 2R                               |  67  | 43.3% | +14.01R (+701$) | 1.51 | 3.72R  | +2.0R
-TP = 3R                               |  67  | 43.3% | +24.01R (+1201$)| 1.87 | 3.72R  | +3.0R
->>> GỒNG THEO XU HƯỚNG (bỏ TP cố định)
-Giữ đến khi ATR đảo chiều  ★ MẶC ĐỊNH |  67  | 43.3% | +17.09R (+855$) | 1.62 | 3.72R  | +4.5R
+>>> GỒNG THUẦN (không trần, chỉ thoát khi ATR đảo chiều)
+Giữ đến khi ATR đảo chiều (TP=0)      |  67  | 43.3% | +17.09R (+855$) | 1.62 | 3.72R  | +4.5R
   └ trên + commission 0.7pip (~7$/lot)|  67  | 43.3% | +15.74R (+787$) | 1.57 | 3.74R  | +4.4R
 Trail theo Slow Trail (Trail2)        |  67  | 35.8% |  +9.06R (+453$) | 1.37 | 3.54R  | +4.4R
 Thoát khi giá phá mây (cloud break)   |  67  | 37.3% |  +8.32R (+416$) | 1.29 | 4.34R  | +4.5R
@@ -118,7 +120,7 @@ Trail theo Kijun                ✗ tệ  |  67  | 32.8% |  +0.51R  (+26$) | 1.0
 | `InpSLMode` | 0 | SL: `0`=Slow Trail, `1`=ATR×hệ số, `2`=Kijun |
 | `InpSLATRMult` | 1.5 | Hệ số ATR cho SL khi `SLMode=1` |
 | `InpMinSLpips` | 5.0 | Khoảng cách SL tối thiểu (pips) — chặn lot phình to |
-| `InpTakeProfitRR` | **0.0** | TP theo bội số R. **`0` = gồng theo trend** (mặc định). Đặt `3.0` nếu muốn chốt cố định |
+| `InpTakeProfitRR` | **3.0** | TP theo bội số R. **`3.0` = "gồng có trần 3R"** (mặc định, tối ưu). Đặt `0` = gồng thuần |
 | `InpMaxLots` | 5.0 | Trần khối lượng an toàn |
 | **Quản lý lệnh (thoát lệnh)** | | |
 | `InpTrailMode` | **0** | Dời SL: `0`=none (gồng — khuyến nghị), `1`=Slow, `2`=Fast, `3`=Kijun |
@@ -151,8 +153,8 @@ SL/vào lệnh quyết định, không phải do cách chốt). Đáng tin vì 3
 → Hiểu đúng: `TP=3R` thực ra là **"gồng có trần 3R"** (vẫn thoát sớm khi ATR đảo chiều nếu trend gãy trước 3R).
 
 ### Khuyến nghị cuối cùng
-- 🥇 **Tối ưu theo số liệu:** `InpTakeProfitRR = 3.0`, `InpTrailMode = 0`, `InpExitOnOpposite = true`.
-- 🥈 **Đúng "gồng" thuần (bạn yêu cầu):** `InpTakeProfitRR = 0`. Lợi thế *tiềm năng*: nếu gặp **năm có sóng cực lớn**
+- 🥇 **Tối ưu theo số liệu — ĐÃ ĐẶT LÀM MẶC ĐỊNH:** `InpTakeProfitRR = 3.0`, `InpTrailMode = 0`, `InpExitOnOpposite = true`.
+- 🥈 **Đúng "gồng" thuần (bạn yêu cầu ban đầu):** `InpTakeProfitRR = 0`. Lợi thế *tiềm năng*: nếu gặp **năm có sóng cực lớn**
   (trend kéo dài > 4–5R), gồng sẽ ăn trọn còn TP=3R bị chốt sớm. 2025 không có sóng như vậy nên TP=3R thắng.
 - ⚠️ Mọi con số là **in-sample 1 năm**. Vùng TP tối ưu có thể đổi theo năm/cặp tiền. Hãy chạy `analyze.py` trên dữ
   liệu năm khác (hoặc Strategy Tester MT5) để xác nhận trước khi quyết định. **Nhớ nhập `InpCommissionPerLot` của broker.**

@@ -7,8 +7,10 @@
 //|   - Entry LONG : ATR Buy (Trail1 cat len Trail2) + gia tren may  |
 //|   - Entry SHORT: ATR Sell(Trail1 cat xuong Trail2)+ gia duoi may |
 //|   - Stop Loss  : tai Slow Trail (Trail2) luc vao lenh => 1R      |
-//|   - Thoat lenh : MAC DINH gong theo trend - giu den khi ATR dao  |
-//|                  chieu (tin hieu nguoc). Co the bat TP/trailing. |
+//|   - Thoat lenh : MAC DINH "gong co tran 3R": chot khi dat +3R,   |
+//|                  hoac thoat som khi ATR dao chieu (tin hieu       |
+//|                  nguoc) neu trend gay truoc 3R. Dat TP=0 = gong   |
+//|                  thuan. Co the bat trailing.                      |
 //|   - 1R (mac dinh 50$) DA bao gom spread (vao lenh gia Ask/Bid)   |
 //|                  + commission (InpCommissionPerLot).             |
 //|   - Tin hieu chi tinh tren NEN DA DONG (khong repaint)           |
@@ -44,7 +46,7 @@ input double InpCommissionPerLot= 0.0;   // Commission round-turn / 1 lot (tien 
 input int    InpSLMode          = 0;     // SL: 0=SlowTrail(Trail2) 1=ATR 2=Kijun
 input double InpSLATRMult       = 1.5;   // He so ATR cho SL khi SLMode=1
 input double InpMinSLpips       = 5.0;   // Khoang cach SL toi thieu (pips) - an toan
-input double InpTakeProfitRR    = 0.0;   // TP theo R (0 = GONG theo trend, khong TP co dinh)
+input double InpTakeProfitRR    = 3.0;   // TP theo R (mac dinh 3R = toi uu+on dinh; 0 = gong thuan)
 input double InpMaxLots         = 5.0;   // Tran khoi luong (an toan)
 
 //================== INPUTS: TRADE MANAGEMENT ========================
