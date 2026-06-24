@@ -3,7 +3,7 @@
 **Muc tieu:** max Recovery Factor (NetProfit/MaxDD).  
 **Loc TRAIN:** PF≥1.3, MaxDD≤15.0%, Trades≥150.  
 **Von:** $5000, 1R=$50 (1%).  
-**Toi uu 5 tham so loi:** fast_period, fast_mult, slow_period, slow_mult, tp_rr (Ichimoku 9/26/52 + cac flag = default EA, co dinh de chong overfitting).
+**Cau hinh:** TP toi uu trong GA, trailing = khong/gong.  **GA toi uu 5 tham so:** fast_period, fast_mult, slow_period, slow_mult, tp_rr (Ichimoku 9/26/52 co dinh de chong overfitting).
 
 ## 1. Ket qua tung luot (IS toi uu vs OOS toi uu vs OOS default-EA)
 
@@ -33,7 +33,7 @@
 - Max Drawdown: $1951.24 (23.9%)
 - Recovery Factor: 1.01
 
-### B) Bo tham so DEFAULT cua EA (fast5/0.5, slow10/3, TP=3R) — khong toi uu
+### B) DEFAULT-EA (fast5/0.5, slow10/3.0, TP=3.0R, trail=0) — khong toi uu
 - Tong lenh: 994 | Win rate: 37.2%
 - Net: $2248.80  (45.0% tren von $5000)
 - Profit Factor: 1.10

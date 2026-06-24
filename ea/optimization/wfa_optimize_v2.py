@@ -74,7 +74,8 @@ def repair(ind):
     ind["slow_mult"] = float(np.clip(ind["slow_mult"], 1.5, 6.0))
     if ind["fast_mult"] > ind["slow_mult"]:
         ind["fast_mult"] = ind["slow_mult"]
-    ind["tp_rr"] = float(np.clip(ind["tp_rr"], 1.0, 6.0))
+    if "tp_rr" in ind:
+        ind["tp_rr"] = float(np.clip(ind["tp_rr"], 1.0, 6.0))
     return ind
 
 
@@ -170,11 +171,23 @@ def main():
     ap.add_argument("--mut", type=float, default=0.2)
     ap.add_argument("--elite", type=int, default=2)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--trail_mode", type=int, default=0)  # 0=none(gong) 1=SlowTrail 2=FastTrail 3=Kijun
+    ap.add_argument("--tp", default="opt")  # "opt"=toi uu tp_rr | so co dinh (vd "0"=gong thuan)
     ap.add_argument("--outdir", default=os.path.join(os.path.dirname(__file__), "results_v2"))
     args = ap.parse_args()
 
     random.seed(args.seed); np.random.seed(args.seed)
     os.makedirs(args.outdir, exist_ok=True)
+
+    # ap dung cau hinh TP / trailing cho lan chay nay
+    FIXED["trail_mode"] = args.trail_mode
+    if args.tp != "opt":
+        fix_tp = float(args.tp)
+        GENES.pop("tp_rr", None)          # bo tp_rr khoi GA (co dinh)
+        FIXED["tp_rr"] = fix_tp
+        DEFAULT_CORE["tp_rr"] = fix_tp     # baseline cung dung cau hinh nay
+        print(f"  Cau hinh: TP co dinh = {fix_tp}R{' (gong)' if fix_tp==0 else ''}, "
+              f"trail_mode = {args.trail_mode}; GA toi uu {len(GENES)} tham so.")
 
     print("Nap du lieu...")
     df = bt2.load_data(args.csv)
@@ -221,7 +234,7 @@ def main():
               f"OOS def: RF={md['recovery_factor']:.2f} PF={md['profit_factor']:.2f} net=${md['net']:.1f} trades={md['trades']}")
         print(f"  best={best}")
 
-        results.append({"train": f"{tr0}-{tr1}", "test": str(te), "params": best,
+        results.append({"train": f"{tr0}-{tr1}", "test": str(te), "params": params_of(best),
                         "is_feasible": bool(feasible),
                         "is": _clean(bm), "oos": _clean(mo), "oos_def": _clean(md)})
 
@@ -249,6 +262,7 @@ def save_outputs(results, oos_opt, oos_def, outdir):
     deff = np.concatenate(oos_def) if oos_def else np.empty(0)
     s_opt = bt2.metrics(opt, START_BALANCE)
     s_def = bt2.metrics(deff, START_BALANCE)
+    np.save(os.path.join(outdir, "oos_opt_pnls.npy"), opt)   # de ve bieu do so sanh
 
     lines = ["train,test,is_feasible,is_RF,is_PF,is_DD%,is_trades,oos_RF,oos_PF,oos_DD%,"
              "oos_trades,oos_net,oosDEF_RF,oosDEF_PF,oosDEF_net"]
@@ -286,8 +300,12 @@ def write_report(results, s_opt, s_def, outdir):
          "**Muc tieu:** max Recovery Factor (NetProfit/MaxDD).  ",
          f"**Loc TRAIN:** PF≥{MIN_PF}, MaxDD≤{MAX_DD_PCT}%, Trades≥{MIN_TRADES}.  ",
          f"**Von:** ${START_BALANCE:.0f}, 1R=${RISK_USD:.0f} (1%).  ",
-         "**Toi uu 5 tham so loi:** fast_period, fast_mult, slow_period, slow_mult, tp_rr "
-         "(Ichimoku 9/26/52 + cac flag = default EA, co dinh de chong overfitting).\n",
+         (lambda tp, tm: f"**Cau hinh:** "
+          + ("gong loi (TP=0)" if tp == 0 else (f"TP co dinh {tp}R" if tp is not None else "TP toi uu trong GA"))
+          + ", trailing = " + {0: "khong/gong", 1: "Slow Trail", 2: "Fast Trail", 3: "Kijun"}.get(tm, str(tm))
+          + f".  **GA toi uu {len(GENES)} tham so:** " + ", ".join(GENES)
+          + " (Ichimoku 9/26/52 co dinh de chong overfitting).\n"
+         )(FIXED.get("tp_rr"), FIXED["trail_mode"]),
          "## 1. Ket qua tung luot (IS toi uu vs OOS toi uu vs OOS default-EA)\n",
          "| Luot | Train | Test | IS ok? | IS RF | IS PF | IS DD% | IS lenh | "
          "OOS RF | OOS PF | OOS net | OOS lenh | DEF RF | DEF net |",
@@ -311,7 +329,12 @@ def write_report(results, s_opt, s_def, outdir):
     span = f"{results[0]['test']}-{results[-1]['test']}" if results else "?"
     L.append(f"\n## 2. OOS tong hop ghep {len(results)} nam test ({span})")
     L += block("A) Bo tham so TOI UU theo tung luot (Walk-Forward thuc su)", s_opt)
-    L += block("B) Bo tham so DEFAULT cua EA (fast5/0.5, slow10/3, TP=3R) — khong toi uu", s_def)
+    dtp = DEFAULT_CORE.get("tp_rr", FIXED.get("tp_rr"))
+    def_lbl = (f"B) DEFAULT-EA (fast{DEFAULT_CORE['fast_period']}/{DEFAULT_CORE['fast_mult']}, "
+               f"slow{DEFAULT_CORE['slow_period']}/{DEFAULT_CORE['slow_mult']}, "
+               + ("TP=gong(0)" if dtp == 0 else f"TP={dtp}R")
+               + f", trail={FIXED['trail_mode']}) — khong toi uu")
+    L += block(def_lbl, s_def)
 
     L.append("\n## 3. Bo tham so toi uu theo tung luot\n")
     L.append("| Luot | fast_period | fast_mult | slow_period | slow_mult | tp_rr |")
