@@ -127,11 +127,35 @@ Trail theo Kijun                ✗ tệ  |  67  | 32.8% |  +0.51R  (+26$) | 1.0
 | `InpMagic` | 990011 | Magic number (phân biệt lệnh của EA) |
 | `InpMaxSpreadPts` | 30 | Spread tối đa (points) cho phép vào lệnh |
 
-### Khuyến nghị cấu hình (theo backtest)
-- **Gồng theo xu hướng (mặc định):** giữ nguyên — `InpTakeProfitRR=0`, `InpTrailMode=0`, `InpExitOnOpposite=true`.
-  Lệnh thắng chạy dài (tới +4.5R), DD thấp, lãi tốt sau phí. **Nhớ nhập `InpCommissionPerLot` đúng của broker bạn.**
-- **Thích chốt nhanh / win-rate cao hơn:** đổi `InpTakeProfitRR = 3.0` (PF 1.87) — đánh đổi: cắt mất các con sóng lớn.
-- **Muốn bảo vệ lời chặt hơn (chấp nhận lời ít hơn):** `InpTrailMode = 1` (dời SL theo Slow Trail).
+### Gồng hay TP? — Phân tích độ tối ưu & ổn định (chạy `python3 analyze.py <csv>`)
+
+Quét mịn giá trị TP + chia đôi dữ liệu 2025 (nửa đầu / nửa cuối) để xem cấu hình nào **ổn định**:
+
+```
+Cấu hình   | tổng R  | PF   | avgWin | Nửa đầu      | Nửa cuối
+-----------+---------+------+--------+--------------+-------------
+TP=2R      | +14.0R  | 1.51 | +1.43R | +9.8R        | +4.2R
+TP=2.5R    | +22.0R  | 1.80 | +1.71R | +13.8R       | +8.2R
+TP=3R   ★  | +24.0R  | 1.87 | +1.78R | +12.6R       | +11.5R   ← cao nhất & CÂN nhất 2 nửa
+TP=4R      | +20.5R  | 1.75 | +1.66R | +12.9R       | +7.6R
+TP=6R      | +22.3R  | 1.81 | +1.72R | +12.4R       | +9.9R
+GỒNG (TP=0)| +17.1R  | 1.62 | +1.54R | +10.9R       | +6.2R
+```
+
+**Kết luận: trên dữ liệu này, `TP = 3R` tối ưu hơn gồng** — lời cao hơn (+24R vs +17R), PF cao hơn (1.87 vs 1.62),
+**và đều ở cả 2 nửa năm** (12.6R / 11.5R), trong khi **drawdown y hệt nhau** (mọi cấu hình ~3.7R, vì DD do logic
+SL/vào lệnh quyết định, không phải do cách chốt). Đáng tin vì 3R **không phải đỉnh nhọn**: cả vùng 2.5R–6R đều cho +20–24R.
+
+**Vì sao?** Trong 2025, EURUSD hay quay đầu sau khi đi được ~3R, nên "gồng" thường **trả lại lời** trong lúc chờ ATR
+đảo chiều (avgWin của gồng chỉ +1.54R, thấp hơn TP=3R +1.78R). Một mức TP trần ~3R **chốt lời trước khi sóng hồi**.
+→ Hiểu đúng: `TP=3R` thực ra là **"gồng có trần 3R"** (vẫn thoát sớm khi ATR đảo chiều nếu trend gãy trước 3R).
+
+### Khuyến nghị cuối cùng
+- 🥇 **Tối ưu theo số liệu:** `InpTakeProfitRR = 3.0`, `InpTrailMode = 0`, `InpExitOnOpposite = true`.
+- 🥈 **Đúng "gồng" thuần (bạn yêu cầu):** `InpTakeProfitRR = 0`. Lợi thế *tiềm năng*: nếu gặp **năm có sóng cực lớn**
+  (trend kéo dài > 4–5R), gồng sẽ ăn trọn còn TP=3R bị chốt sớm. 2025 không có sóng như vậy nên TP=3R thắng.
+- ⚠️ Mọi con số là **in-sample 1 năm**. Vùng TP tối ưu có thể đổi theo năm/cặp tiền. Hãy chạy `analyze.py` trên dữ
+  liệu năm khác (hoặc Strategy Tester MT5) để xác nhận trước khi quyết định. **Nhớ nhập `InpCommissionPerLot` của broker.**
 
 ---
 
