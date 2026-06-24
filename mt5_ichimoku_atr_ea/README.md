@@ -1,7 +1,8 @@
 # EA MT5: Ichimoku Kumo + ATR Trailing Stop
 
 EA (Expert Advisor) cho MetaTrader 5, xây dựng từ 2 indicator TradingView bạn cung cấp:
-**Ichimoku Cloud** và **ATR Trailing Stop (ceyhun)** — kèm quản lý vốn rủi ro cố định **1R = 50$**.
+**Ichimoku Cloud** và **ATR Trailing Stop (ceyhun)** — quản lý vốn rủi ro cố định **1R = 50$ (đã gồm spread + commission)**,
+mặc định **gồng theo xu hướng** (không TP cố định, thoát khi ATR đảo chiều).
 
 > File chính: [`Ichimoku_ATR_EA.mq5`](./Ichimoku_ATR_EA.mq5)
 > Backtest kiểm chứng (Python): [`backtest.py`](./backtest.py) · [`sweep.py`](./sweep.py)
@@ -16,9 +17,9 @@ indicator một vai trò rõ ràng (đây là cách phối hợp kinh điển: 1
 | Thành phần | Vai trò | Logic |
 |---|---|---|
 | **Ichimoku Kumo (mây)** | **Bộ lọc xu hướng** | Chỉ cho Buy khi giá **nằm trên mây**, chỉ cho Sell khi giá **nằm dưới mây** |
-| **ATR Trailing Stop** | **Tín hiệu vào lệnh** | Buy = Fast Trail cắt **lên** Slow Trail; Sell = Fast Trail cắt **xuống** Slow Trail |
+| **ATR Trailing Stop** | **Tín hiệu vào & thoát** | Vào: Fast Trail cắt **lên** Slow Trail (Buy) / cắt **xuống** (Sell). Thoát: khi cắt **ngược lại** (đảo trend) |
 | **Slow Trail (Trail2)** | **Stop Loss tự nhiên** | SL đặt ngay tại Slow Trail lúc vào lệnh — bản thân nó đã là 1 ATR-stop |
-| **Rủi ro cố định 1R** | **Khối lượng (lot)** | Lot tự tính sao cho **nếu dính SL thì lỗ đúng ~50$** |
+| **Rủi ro cố định 1R** | **Khối lượng (lot)** | Lot tự tính sao cho **nếu dính SL thì lỗ đúng 50$ (đã gồm spread + commission)** |
 
 ### Quy tắc vào lệnh
 
@@ -26,50 +27,61 @@ indicator một vai trò rõ ràng (đây là cách phối hợp kinh điển: 1
 - **SHORT (Bán):** có tín hiệu Sell của ATR (`Trail1` cắt xuống `Trail2`) **VÀ** giá đóng cửa nằm **dưới** mây Kumo.
 - Tín hiệu chỉ được tính trên **nến đã đóng** → **không repaint**, không vào lệnh giữa nến.
 
-### Stop Loss & Take Profit
+### Stop Loss & "gồng" theo xu hướng (Take Profit)
 
-- **SL** mặc định = giá trị **Slow Trail (Trail2)** tại thời điểm vào lệnh (có khoảng cách tối thiểu để
-  tránh lot quá lớn). Đây chính là khoảng cách định nghĩa **1R**.
-- **TP** mặc định = **2R** (tỉ lệ Risk:Reward = 1:2). Tức rủi ro 50$ để nhắm lời 100$.
-- Tùy chọn: đóng lệnh sớm khi xuất hiện **tín hiệu ngược** (`ExitOnOpposite`), và/hoặc **dời SL** theo Slow Trail (`UseTrailing`).
+- **SL** = giá trị **Slow Trail (Trail2)** tại thời điểm vào lệnh (có khoảng cách tối thiểu để tránh lot quá lớn).
+  Đây chính là khoảng cách định nghĩa **1R**.
+- **Thoát lệnh (mặc định = GỒNG theo trend):** **KHÔNG đặt TP cố định**, giữ lệnh chạy cho tới khi
+  **ATR Trailing Stop đảo chiều** (`Trail1` cắt ngược `Trail2`) — đó chính là tín hiệu trend đã quay đầu.
+  Cách này để **lệnh thắng chạy dài** (backtest có lệnh ăn tới **+4.5R**) trong khi lệnh thua vẫn bị chặn ở đúng 1R.
+- Vì sao **không** dùng trailing-stop bám sát giá? Vì Slow Trail (3×ATR) quá lỏng, còn Fast Trail/Kijun lại quá chặt —
+  cả hai đều **bóp** đà của trend và làm giảm lời (xem bảng mục 2). Để trend tự chạy đến khi hệ thống báo đảo là tốt nhất.
+- Tùy chọn khác (có thể bật trong Inputs): TP cố định theo R, dời SL theo Slow/Fast/Kijun, hoặc thoát khi giá phá mây.
 
-### Position sizing — cốt lõi của "1R = 50$"
+### Position sizing — cốt lõi của "1R = 50$ (đã gồm spread)"
 
 ```
-khoảng_cách_SL  = |giá_vào − giá_SL|
-lỗ_mỗi_1_lot    = (khoảng_cách_SL / tick_size) × tick_value
-lot             = RiskMoney(50$) / lỗ_mỗi_1_lot      → làm tròn xuống theo bước lot
+khoảng_cách_SL  = |giá_vào − giá_SL|     (giá_vào = Ask khi mua / Bid khi bán → ĐÃ gồm spread)
+lỗ_mỗi_1_lot    = (khoảng_cách_SL / tick_size) × tick_value + commission_mỗi_lot
+lot             = 50$ / lỗ_mỗi_1_lot     → làm tròn xuống theo bước lot
 ```
 
-Nhờ vậy, **dù SL gần hay xa, mỗi lệnh thua luôn ≈ 50$**. Đúng yêu cầu của bạn.
+Vì vào lệnh ở giá **Ask/Bid** nên khi dính SL, phần spread đã **nằm sẵn** trong khoản lỗ; cộng thêm
+`InpCommissionPerLot` nữa là **trọn vẹn chi phí**. Kết quả: **dù SL gần hay xa, mỗi lệnh thua luôn = đúng 50$
+(gồm spread + commission)**. Đúng như bạn yêu cầu.
 
 ---
 
 ## 2. Kết quả backtest trên chính dữ liệu của bạn
 
-Dữ liệu: **EURUSD H1, 2025.01.01 → 2025.12.31 (6.214 nến)**. Lời/lỗ tính theo **R** (1R = 50$).
+Dữ liệu: **EURUSD H1, 2025.01.01 → 2025.12.31 (6.214 nến)**. Lời/lỗ theo **R** (1R = 50$),
+**đã mô phỏng spread thật** (lấy từ cột `<SPREAD>` của từng nến trong file của bạn).
 
 ```
-Cấu hình                                | lệnh | win   | tổng lời       | PF   | DD
-----------------------------------------+------+-------+----------------+------+------
-Baseline (TP=2R)                        |  67  | 43.3% | +13.18R (+659$)| 1.46 | 3.98R
-TP = 3R                ★ tốt nhất       |  67  | 43.3% | +23.33R (+1167$)| 1.82 | 3.98R
-Trailing + TP=2R       (lời cao, DD cao)|  67  | 35.8% | +32.29R (+1614$)| 1.75 | 6.24R
-TP = 1.5R                               |  67  | 43.3% | +11.18R (+559$)| 1.39 | 4.10R
-TP = 1R                                 |  67  | 47.8% |  +4.55R (+228$)| 1.17 | 4.26R
-Không lọc mây (chỉ ATR)                 | 150  | 38.0% | +14.12R (+706$)| 1.21 | 9.06R
-+ Lọc màu mây                ✗ tệ hơn   |  34  | 32.4% |  −4.34R (−217$)| 0.76 | 7.25R
-Trailing + bỏ TP             ✗ rất tệ   |  67  | 35.8% | −19.00R (−950$)| 0.56 | 21.0R
+>>> CÓ TP CỐ ĐỊNH (tham khảo)         | lệnh | win   | tổng lời        | PF   | DD     | lệnh thắng to nhất
+TP = 2R                               |  67  | 43.3% | +14.01R (+701$) | 1.51 | 3.72R  | +2.0R
+TP = 3R                               |  67  | 43.3% | +24.01R (+1201$)| 1.87 | 3.72R  | +3.0R
+>>> GỒNG THEO XU HƯỚNG (bỏ TP cố định)
+Giữ đến khi ATR đảo chiều  ★ MẶC ĐỊNH |  67  | 43.3% | +17.09R (+855$) | 1.62 | 3.72R  | +4.5R
+  └ trên + commission 0.7pip (~7$/lot)|  67  | 43.3% | +15.74R (+787$) | 1.57 | 3.74R  | +4.4R
+Trail theo Slow Trail (Trail2)        |  67  | 35.8% |  +9.06R (+453$) | 1.37 | 3.54R  | +4.4R
+Thoát khi giá phá mây (cloud break)   |  67  | 37.3% |  +8.32R (+416$) | 1.29 | 4.34R  | +4.5R
+Trail theo Fast Trail (Trail1)  ✗ chặt|  67  | 34.3% |  +1.69R  (+84$) | 1.25 | 1.58R  | +1.0R
+Trail theo Kijun                ✗ tệ  |  67  | 32.8% |  +0.51R  (+26$) | 1.03 | 4.89R  | +3.6R
 ```
-*(PF = Profit Factor; DD = max drawdown theo R. Chạy lại bằng `python3 sweep.py <csv>`)*
+*(PF = Profit Factor; DD = max drawdown theo R. Chạy lại: `python3 sweep.py <csv>`)*
 
 **Nhận xét:**
-- Lọc bằng mây Ichimoku **giúp ích rõ rệt** (so với "chỉ ATR": ít lệnh hơn nhưng PF cao hơn, DD thấp hơn nhiều).
-- **TP = 3R** cho kết quả tốt nhất về rủi ro/lợi nhuận: lời cao gần gấp đôi baseline mà **drawdown y hệt** (3.98R).
-- **Trailing theo Slow Trail** cho tổng lời cao nhất nhưng win rate thấp (36%) và DD cao hơn — chỉ dùng **khi đã bật TP**. Bật trailing mà bỏ TP → thua nặng.
-- Thêm điều kiện **màu mây** lại làm tệ đi → để mặc định **tắt**.
+- ✅ **Cấu hình mặc định (gồng đến khi ATR đảo chiều)** là lựa chọn tốt nhất cho mục tiêu *bám trend* của bạn:
+  **+17R (+855$)**, lệnh thắng chạy được tới **+4.5R**, mà max drawdown vẫn chỉ **~186$** (≈3.7R).
+- Mọi kiểu **trailing-stop bám sát** đều **làm giảm lời** (cắt trend non): Fast Trail +1.7R, Kijun +0.5R, Slow Trail +9R.
+  → Với chiến lược này, cách "gồng" tốt nhất là **không** trailing, để hệ thống ATR tự báo điểm thoát.
+- **Chi phí thật ảnh hưởng nhỏ:** thêm commission 7$/lot, lời chỉ giảm từ +855$ xuống **+787$** → chiến lược vẫn lãi tốt sau phí.
+- Nếu bạn thích **win-rate cao + chốt nhanh** thay vì gồng, dùng **TP=3R** (PF 1.87, +1201$) — nhưng sẽ cắt mất các con sóng lớn.
 
-> ⚠️ **Lưu ý trung thực:** đây là backtest **in-sample 1 năm**, **chưa trừ spread/commission/slippage** (R tính theo giá thuần). Spread EURUSD trong file ~0.6–1.6 pip, trên SL trung bình ~25–40 pip sẽ "ăn" vài % mỗi lệnh; cộng phí hoa hồng nữa thì kết quả thực sẽ **thấp hơn** bảng trên. Hãy chạy lại trong **Strategy Tester của MT5** (chế độ "Every tick based on real ticks") với spread/phí thật của broker trước khi giao dịch tiền thật.
+> ⚠️ **Lưu ý trung thực:** đây vẫn là backtest **in-sample 1 năm**. Đã gồm **spread thật** nhưng *chưa* mô phỏng
+> slippage và requote. Hãy chạy lại trong **Strategy Tester của MT5** (Model = *Every tick based on real ticks*)
+> với spread/commission **của chính broker bạn**, rồi **forward-test demo** trước khi vào tiền thật.
 
 ---
 
@@ -101,21 +113,25 @@ Trailing + bỏ TP             ✗ rất tệ   |  67  | 35.8% | −19.00R (−9
 | `InpFastATRPeriod` / `InpFastATRMult` | 5 / 0.5 | Fast Trail (AP1 / AF1) |
 | `InpSlowATRPeriod` / `InpSlowATRMult` | 10 / 3.0 | Slow Trail (AP2 / AF2) |
 | **Quản lý rủi ro** | | |
-| `InpRiskMoney` | **50.0** | **1R — số tiền rủi ro mỗi lệnh** |
+| `InpRiskMoney` | **50.0** | **1R — tiền rủi ro mỗi lệnh (đã gồm spread + commission)** |
+| `InpCommissionPerLot` | 0.0 | Commission round-turn / 1 lot (nhập theo broker, vd 7.0) |
 | `InpSLMode` | 0 | SL: `0`=Slow Trail, `1`=ATR×hệ số, `2`=Kijun |
 | `InpSLATRMult` | 1.5 | Hệ số ATR cho SL khi `SLMode=1` |
 | `InpMinSLpips` | 5.0 | Khoảng cách SL tối thiểu (pips) — chặn lot phình to |
-| `InpTakeProfitRR` | 2.0 | TP theo bội số R (đặt `3.0` theo backtest; `0`=không TP cố định) |
+| `InpTakeProfitRR` | **0.0** | TP theo bội số R. **`0` = gồng theo trend** (mặc định). Đặt `3.0` nếu muốn chốt cố định |
 | `InpMaxLots` | 5.0 | Trần khối lượng an toàn |
-| **Quản lý lệnh** | | |
-| `InpUseTrailing` | false | Dời SL theo Slow Trail (chỉ bật khi có TP) |
-| `InpExitOnOpposite` | true | Đóng lệnh khi có tín hiệu ngược |
+| **Quản lý lệnh (thoát lệnh)** | | |
+| `InpTrailMode` | **0** | Dời SL: `0`=none (gồng — khuyến nghị), `1`=Slow, `2`=Fast, `3`=Kijun |
+| `InpExitOnOpposite` | true | Đóng khi ATR đảo chiều (= tín hiệu đảo trend) — **đây là cách gồng** |
+| `InpExitOnCloudBreak` | false | Đóng khi giá đóng cửa quay lại qua mây Kumo |
 | `InpMagic` | 990011 | Magic number (phân biệt lệnh của EA) |
 | `InpMaxSpreadPts` | 30 | Spread tối đa (points) cho phép vào lệnh |
 
 ### Khuyến nghị cấu hình (theo backtest)
-- **An toàn / dễ giao dịch:** giữ mặc định nhưng đổi `InpTakeProfitRR = 3.0` (PF 1.82, DD thấp nhất).
-- **Tăng trưởng mạnh hơn:** `InpUseTrailing = true`, giữ `InpTakeProfitRR = 2.0` (lời cao nhất, chấp nhận DD & win rate thấp hơn).
+- **Gồng theo xu hướng (mặc định):** giữ nguyên — `InpTakeProfitRR=0`, `InpTrailMode=0`, `InpExitOnOpposite=true`.
+  Lệnh thắng chạy dài (tới +4.5R), DD thấp, lãi tốt sau phí. **Nhớ nhập `InpCommissionPerLot` đúng của broker bạn.**
+- **Thích chốt nhanh / win-rate cao hơn:** đổi `InpTakeProfitRR = 3.0` (PF 1.87) — đánh đổi: cắt mất các con sóng lớn.
+- **Muốn bảo vệ lời chặt hơn (chấp nhận lời ít hơn):** `InpTrailMode = 1` (dời SL theo Slow Trail).
 
 ---
 
@@ -127,14 +143,18 @@ python3 backtest.py  /đường_dẫn/EURUSD_H1_2025.csv   # 1 cấu hình + bá
 python3 sweep.py     /đường_dẫn/EURUSD_H1_2025.csv   # so sánh nhiều cấu hình
 ```
 File `backtest.py` tái hiện **đúng logic** của EA (Ichimoku donchian, ATR Wilder, đệ quy Trailing,
-lọc mây, SL=Slow Trail, TP theo R, vào lệnh ở open nến kế tiếp) để bạn đối chiếu trước khi chạy MT5.
+lọc mây, SL=Slow Trail, **mô phỏng spread thật + commission**, các kiểu thoát lệnh, vào lệnh ở open nến kế tiếp)
+để bạn đối chiếu trước khi chạy MT5. Sửa các tham số ở đầu file `backtest.py` để thử cấu hình khác.
 
 ---
 
 ## 6. Giới hạn & lời khuyên
 
-- Backtest chỉ 1 năm, in-sample, chưa trừ chi phí → **đừng kỳ vọng y hệt** khi chạy thật.
-- Nên forward-test trên **tài khoản demo** vài tuần trước khi dùng tiền thật.
-- `tick_value`/`tick_size` lấy từ broker; nếu loại tài khoản (cent/standard) hoặc tiền tệ tài khoản
-  khác nhau, lot sẽ tự điều chỉnh — nhưng hãy kiểm tra log "BUY/SELL ... R=50$" để chắc chắn rủi ro đúng ý.
+- Backtest 1 năm, in-sample. Đã gồm **spread thật + commission**, nhưng **chưa** mô phỏng slippage/requote
+  → kết quả thật có thể thấp hơn chút. **Đừng kỳ vọng y hệt.**
+- Nên **forward-test demo** vài tuần trước khi dùng tiền thật.
+- Nhập `InpCommissionPerLot` đúng của broker. `tick_value`/`tick_size` EA tự lấy từ broker; nếu loại tài khoản
+  (cent/standard) hay tiền tệ tài khoản khác, lot tự điều chỉnh — hãy xem log `[BUY/SELL] ... R=50$` để chắc rủi ro đúng.
+- "Gồng theo trend" nghĩa là **không có TP** — có thể có lúc lời nổi rất lớn rồi co lại trước khi ATR báo đảo chiều.
+  Đó là bản chất của cách bám trend; bù lại các con sóng lớn được giữ trọn. Nếu không chịu được, dùng `InpTrailMode=1`.
 - EA mặc định **chỉ giữ 1 lệnh tại một thời điểm** trên symbol.

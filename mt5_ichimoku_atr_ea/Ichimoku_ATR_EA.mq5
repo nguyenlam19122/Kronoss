@@ -6,8 +6,11 @@
 //|                                                                  |
 //|   - Entry LONG : ATR Buy (Trail1 cat len Trail2) + gia tren may  |
 //|   - Entry SHORT: ATR Sell(Trail1 cat xuong Trail2)+ gia duoi may |
-//|   - Stop Loss  : tai Slow Trail (Trail2) luc vao lenh            |
-//|   - Take Profit: bao nhieu R (mac dinh 2R)                       |
+//|   - Stop Loss  : tai Slow Trail (Trail2) luc vao lenh => 1R      |
+//|   - Thoat lenh : MAC DINH gong theo trend - giu den khi ATR dao  |
+//|                  chieu (tin hieu nguoc). Co the bat TP/trailing. |
+//|   - 1R (mac dinh 50$) DA bao gom spread (vao lenh gia Ask/Bid)   |
+//|                  + commission (InpCommissionPerLot).             |
 //|   - Tin hieu chi tinh tren NEN DA DONG (khong repaint)           |
 //+------------------------------------------------------------------+
 #property copyright "Generated for Kronoss user"
@@ -36,17 +39,19 @@ input double InpSlowATRMult     = 3.0;   // Slow ATR multiplier (AF2)
 
 //================== INPUTS: RISK / SL / TP ==========================
 input group "=== Quan ly rui ro ==="
-input double InpRiskMoney       = 50.0;  // 1R = rui ro moi lenh (tien tai khoan)
+input double InpRiskMoney       = 50.0;  // 1R = rui ro moi lenh (DA gom spread+commission)
+input double InpCommissionPerLot= 0.0;   // Commission round-turn / 1 lot (tien tai khoan)
 input int    InpSLMode          = 0;     // SL: 0=SlowTrail(Trail2) 1=ATR 2=Kijun
 input double InpSLATRMult       = 1.5;   // He so ATR cho SL khi SLMode=1
 input double InpMinSLpips       = 5.0;   // Khoang cach SL toi thieu (pips) - an toan
-input double InpTakeProfitRR    = 2.0;   // TP tinh theo R (0 = khong dat TP co dinh)
+input double InpTakeProfitRR    = 0.0;   // TP theo R (0 = GONG theo trend, khong TP co dinh)
 input double InpMaxLots         = 5.0;   // Tran khoi luong (an toan)
 
 //================== INPUTS: TRADE MANAGEMENT ========================
-input group "=== Quan ly lenh ==="
-input bool   InpUseTrailing     = false; // Doi SL theo Slow Trail (Trail2)
-input bool   InpExitOnOpposite  = true;  // Dong lenh khi co tin hieu nguoc
+input group "=== Quan ly lenh (thoat lenh) ==="
+input int    InpTrailMode       = 0;     // Doi SL: 0=none(gong) 1=SlowTrail 2=FastTrail 3=Kijun
+input bool   InpExitOnOpposite  = true;  // Dong khi co tin hieu ATR nguoc (= dao trend)
+input bool   InpExitOnCloudBreak= false; // Dong khi gia dong cua quay lai qua may
 input long   InpMagic           = 990011;// Magic number
 input int    InpMaxSpreadPts    = 30;    // Spread toi da (points) cho phep vao lenh
 input int    InpSlippagePts     = 20;    // Do truot gia cho phep (points)
@@ -193,7 +198,8 @@ double CalcLots(const double slDistance)
    double tickSize  = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
    if(tickValue <= 0 || tickSize <= 0) return 0.0;
 
-   double lossPerLot = (slDistance / tickSize) * tickValue;  // tien thua/1 lot
+   // tien thua/1 lot = thua do gia (da gom spread vi entry = Ask/Bid) + commission
+   double lossPerLot = (slDistance / tickSize) * tickValue + InpCommissionPerLot;
    if(lossPerLot <= 0) return 0.0;
 
    double lots = InpRiskMoney / lossPerLot;
@@ -269,11 +275,11 @@ void OpenTrade(const bool isLong, const double kijun, const double atrSlow)
 }
 
 //+------------------------------------------------------------------+
-//| Trailing SL theo Slow Trail                                      |
+//| Trailing SL: doi SL ve `line` (chi theo huong co loi)            |
 //+------------------------------------------------------------------+
-void ManageTrailing(const long posType, const double curSL, const ulong ticket)
+void ManageTrailing(const long posType, const double curSL, const ulong ticket, const double line)
 {
-   double newSL = NormalizeDouble(gTrail2, gDigits);
+   double newSL = NormalizeDouble(line, gDigits);
    if(posType == POSITION_TYPE_BUY)
    {
       double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
@@ -381,15 +387,28 @@ void OnTick()
 
    if(inPos)
    {
-      // dong khi co tin hieu nguoc
+      // 1) dong khi co tin hieu ATR nguoc (= tin hieu dao trend -> chot "gong")
       if(InpExitOnOpposite)
       {
-         if(posType == POSITION_TYPE_BUY && sellSig)  { trade.PositionClose(ticket); inPos = false; }
-         else if(posType == POSITION_TYPE_SELL && buySig){ trade.PositionClose(ticket); inPos = false; }
+         if(posType == POSITION_TYPE_BUY && sellSig)      { trade.PositionClose(ticket); inPos = false; }
+         else if(posType == POSITION_TYPE_SELL && buySig) { trade.PositionClose(ticket); inPos = false; }
       }
-      // trailing theo Slow Trail
-      if(inPos && InpUseTrailing)
-         ManageTrailing(posType, posSL, ticket);
+      // 2) dong khi gia dong cua quay lai qua may Kumo
+      if(inPos && InpExitOnCloudBreak && cloudOK)
+      {
+         if(posType == POSITION_TYPE_BUY && c1 < cloudBot)      { trade.PositionClose(ticket); inPos = false; }
+         else if(posType == POSITION_TYPE_SELL && c1 > cloudTop){ trade.PositionClose(ticket); inPos = false; }
+      }
+      // 3) doi SL bam theo (chi khi InpTrailMode > 0)
+      if(inPos && InpTrailMode > 0)
+      {
+         double line = 0.0; bool has = true;
+         if(InpTrailMode == 1)      line = gTrail2;   // Slow Trail
+         else if(InpTrailMode == 2) line = gTrail1;   // Fast Trail
+         else if(InpTrailMode == 3) line = kijun;     // Kijun
+         else                       has = false;
+         if(has) ManageTrailing(posType, posSL, ticket, line);
+      }
    }
 
    //--- Vao lenh moi ---

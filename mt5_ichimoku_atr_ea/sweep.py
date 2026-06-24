@@ -1,29 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""So sanh nhanh cac cau hinh tham so de chon setup tot."""
+"""So sanh cac kieu thoat lenh (da gom spread that). Tap trung 'gong theo trend'."""
 import sys
 import backtest as bt
 
-
-def run(label, **overrides):
-    for k, v in overrides.items():
-        setattr(bt, k, v)
-    trades = bt.run_backtest(BARS)
-    n = len(trades)
-    wins = sum(1 for t in trades if t.r > 0)
-    total_r = sum(t.r for t in trades)
-    gl = abs(sum(t.r for t in trades if t.r <= 0))
-    gw = sum(t.r for t in trades if t.r > 0)
-    pf = gw / gl if gl > 0 else float("inf")
-    eq = peak = dd = 0.0
-    for t in trades:
-        eq += t.r; peak = max(peak, eq); dd = max(dd, peak - eq)
-    print(f"{label:38s} | trades {n:3d} | win {100*wins/n:4.1f}% | "
-          f"{total_r:+6.2f}R ({total_r*50:+8.1f}$) | PF {pf:4.2f} | DD {dd:4.2f}R")
-
-
 DEFAULTS = dict(USE_CLOUD_FILTER=True, REQUIRE_CLOUD_COLOR=False,
-                TAKE_PROFIT_RR=2.0, EXIT_ON_OPPOSITE=True, USE_TRAILING=False)
+                TAKE_PROFIT_RR=0.0, TRAIL_MODE="none",
+                EXIT_ON_CLOUD_BREAK=False, EXIT_ON_OPPOSITE=True,
+                COMMISSION_PIPS=0.0)
 
 
 def reset():
@@ -31,19 +15,33 @@ def reset():
         setattr(bt, k, v)
 
 
+def run(label, **ov):
+    reset()
+    for k, v in ov.items():
+        setattr(bt, k, v)
+    s = bt.stats(bt.run_backtest(BARS))
+    print(f"{label:42s} | {s['n']:3d} lenh | win {s['wr']:4.1f}% | "
+          f"{s['total_r']:+6.2f}R ({s['total_r']*50:+8.1f}$) | PF {s['pf']:4.2f} | "
+          f"DD {s['dd']:5.2f}R | max {s['best']:+5.1f}R")
+
+
 if __name__ == "__main__":
     BARS = bt.load_csv(sys.argv[1])
-    print(f"Du lieu: {len(BARS)} nen ({BARS[0].time} -> {BARS[-1].time})\n")
-    print("-" * 110)
-    reset(); run("Baseline (TP=2R, exitOpp, cloud filter)")
-    reset(); run("+ Cloud color filter", REQUIRE_CLOUD_COLOR=True)
-    reset(); run("+ Trailing SlowTrail", USE_TRAILING=True)
-    reset(); run("Trailing + no fixed TP", USE_TRAILING=True, TAKE_PROFIT_RR=0.0)
-    reset(); run("No exit-on-opposite (pure TP/SL)", EXIT_ON_OPPOSITE=False)
-    reset(); run("TP = 1.5R", TAKE_PROFIT_RR=1.5)
-    reset(); run("TP = 3R", TAKE_PROFIT_RR=3.0)
-    reset(); run("TP = 1R", TAKE_PROFIT_RR=1.0)
-    reset(); run("No cloud filter (ATR only)", USE_CLOUD_FILTER=False)
-    reset(); run("TP=3R + cloud color", TAKE_PROFIT_RR=3.0, REQUIRE_CLOUD_COLOR=True)
-    reset(); run("TP=2R + cloud color + trailing", REQUIRE_CLOUD_COLOR=True, USE_TRAILING=True)
-    print("-" * 110)
+    print(f"Du lieu: {len(BARS)} nen ({BARS[0].time} -> {BARS[-1].time})  [spread that ON]\n")
+    print("-" * 118)
+    print(">>> CO TP CO DINH (de tham khao):")
+    run("TP=2R (none)",                 TAKE_PROFIT_RR=2.0)
+    run("TP=3R (none)",                 TAKE_PROFIT_RR=3.0)
+    print(">>> GONG THEO XU HUONG (bo TP co dinh):")
+    run("Ride: exit-opposite only",     TRAIL_MODE="none")
+    run("Ride: trail SLOW (Trail2)",    TRAIL_MODE="slow")
+    run("Ride: trail FAST (Trail1)",    TRAIL_MODE="fast")
+    run("Ride: trail KIJUN",            TRAIL_MODE="kijun")
+    run("Ride: trail FAST, no exitOpp", TRAIL_MODE="fast",  EXIT_ON_OPPOSITE=False)
+    run("Ride: trail KIJUN,no exitOpp", TRAIL_MODE="kijun", EXIT_ON_OPPOSITE=False)
+    run("Ride: cloud-break exit",       TRAIL_MODE="none",  EXIT_ON_CLOUD_BREAK=True)
+    run("Ride: FAST + cloud-break",     TRAIL_MODE="fast",  EXIT_ON_CLOUD_BREAK=True)
+    run("Ride: KIJUN + cloud-break",    TRAIL_MODE="kijun", EXIT_ON_CLOUD_BREAK=True)
+    print(">>> Anh huong commission (vd 0.7pip ~ 7$/lot) len cau hinh KHUYEN NGHI:")
+    run("Recommended + comm 0.7pip",    TRAIL_MODE="none",  COMMISSION_PIPS=0.7)
+    print("-" * 118)
