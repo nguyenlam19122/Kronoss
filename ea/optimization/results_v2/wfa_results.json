@@ -1,0 +1,338 @@
+[
+  {
+    "train": "2010-2012",
+    "test": "2013",
+    "params": {
+      "fast_period": 5,
+      "fast_mult": 0.377,
+      "slow_period": 14,
+      "slow_mult": 2.754,
+      "tp_rr": 5.366
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 218,
+      "net": 2764.2563,
+      "gross_profit": 7070.3018,
+      "gross_loss": 4306.0455,
+      "profit_factor": 1.6419,
+      "max_dd_abs": 350.8216,
+      "max_dd_pct": 5.1271,
+      "recovery_factor": 7.8794,
+      "win_rate": 42.2018,
+      "end_balance": 7764.2563
+    },
+    "oos": {
+      "trades": 102,
+      "net": 37.5078,
+      "gross_profit": 2530.858,
+      "gross_loss": 2493.3502,
+      "profit_factor": 1.015,
+      "max_dd_abs": 573.4749,
+      "max_dd_pct": 10.6947,
+      "recovery_factor": 0.0654,
+      "win_rate": 34.3137,
+      "end_balance": 5037.5078
+    },
+    "oos_def": {
+      "trades": 91,
+      "net": 33.804,
+      "gross_profit": 2228.1215,
+      "gross_loss": 2194.3175,
+      "profit_factor": 1.0154,
+      "max_dd_abs": 498.5928,
+      "max_dd_pct": 9.4041,
+      "recovery_factor": 0.0678,
+      "win_rate": 35.1648,
+      "end_balance": 5033.804
+    }
+  },
+  {
+    "train": "2011-2013",
+    "test": "2014",
+    "params": {
+      "fast_period": 9,
+      "fast_mult": 1.661,
+      "slow_period": 19,
+      "slow_mult": 2.792,
+      "tp_rr": 5.588
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 256,
+      "net": 2183.2702,
+      "gross_profit": 7768.6355,
+      "gross_loss": 5585.3653,
+      "profit_factor": 1.3909,
+      "max_dd_abs": 397.0077,
+      "max_dd_pct": 6.6461,
+      "recovery_factor": 5.4993,
+      "win_rate": 38.2812,
+      "end_balance": 7183.2702
+    },
+    "oos": {
+      "trades": 82,
+      "net": 306.396,
+      "gross_profit": 2074.2042,
+      "gross_loss": 1767.8082,
+      "profit_factor": 1.1733,
+      "max_dd_abs": 368.1988,
+      "max_dd_pct": 6.8961,
+      "recovery_factor": 0.8321,
+      "win_rate": 39.0244,
+      "end_balance": 5306.396
+    },
+    "oos_def": {
+      "trades": 73,
+      "net": 153.9796,
+      "gross_profit": 1842.2509,
+      "gross_loss": 1688.2713,
+      "profit_factor": 1.0912,
+      "max_dd_abs": 480.3726,
+      "max_dd_pct": 9.2434,
+      "recovery_factor": 0.3205,
+      "win_rate": 34.2466,
+      "end_balance": 5153.9796
+    }
+  },
+  {
+    "train": "2012-2014",
+    "test": "2015",
+    "params": {
+      "fast_period": 4,
+      "fast_mult": 0.916,
+      "slow_period": 23,
+      "slow_mult": 2.611,
+      "tp_rr": 6.0
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 271,
+      "net": 2811.7936,
+      "gross_profit": 8842.2826,
+      "gross_loss": 6030.489,
+      "profit_factor": 1.4663,
+      "max_dd_abs": 573.3956,
+      "max_dd_pct": 8.2682,
+      "recovery_factor": 4.9038,
+      "win_rate": 38.7454,
+      "end_balance": 7811.7936
+    },
+    "oos": {
+      "trades": 84,
+      "net": 1579.7327,
+      "gross_profit": 3578.7829,
+      "gross_loss": 1999.0503,
+      "profit_factor": 1.7902,
+      "max_dd_abs": 502.3433,
+      "max_dd_pct": 7.3023,
+      "recovery_factor": 3.1447,
+      "win_rate": 35.7143,
+      "end_balance": 6579.7327
+    },
+    "oos_def": {
+      "trades": 74,
+      "net": 739.1748,
+      "gross_profit": 2207.5855,
+      "gross_loss": 1468.4107,
+      "profit_factor": 1.5034,
+      "max_dd_abs": 386.3342,
+      "max_dd_pct": 6.4852,
+      "recovery_factor": 1.9133,
+      "win_rate": 39.1892,
+      "end_balance": 5739.1748
+    }
+  },
+  {
+    "train": "2013-2015",
+    "test": "2016",
+    "params": {
+      "fast_period": 11,
+      "fast_mult": 1.563,
+      "slow_period": 22,
+      "slow_mult": 2.757,
+      "tp_rr": 5.681
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 257,
+      "net": 3270.9213,
+      "gross_profit": 8990.9147,
+      "gross_loss": 5719.9934,
+      "profit_factor": 1.5718,
+      "max_dd_abs": 476.1148,
+      "max_dd_pct": 8.8713,
+      "recovery_factor": 6.87,
+      "win_rate": 40.0778,
+      "end_balance": 8270.9213
+    },
+    "oos": {
+      "trades": 68,
+      "net": 139.0857,
+      "gross_profit": 1519.5056,
+      "gross_loss": 1380.4199,
+      "profit_factor": 1.1008,
+      "max_dd_abs": 536.9946,
+      "max_dd_pct": 9.6567,
+      "recovery_factor": 0.259,
+      "win_rate": 35.2941,
+      "end_balance": 5139.0857
+    },
+    "oos_def": {
+      "trades": 69,
+      "net": 125.7195,
+      "gross_profit": 1482.9002,
+      "gross_loss": 1357.1807,
+      "profit_factor": 1.0926,
+      "max_dd_abs": 421.2054,
+      "max_dd_pct": 7.8207,
+      "recovery_factor": 0.2985,
+      "win_rate": 40.5797,
+      "end_balance": 5125.7195
+    }
+  },
+  {
+    "train": "2014-2016",
+    "test": "2017",
+    "params": {
+      "fast_period": 8,
+      "fast_mult": 1.99,
+      "slow_period": 19,
+      "slow_mult": 3.067,
+      "tp_rr": 1.864
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 218,
+      "net": 2229.4909,
+      "gross_profit": 6511.6139,
+      "gross_loss": 4282.123,
+      "profit_factor": 1.5207,
+      "max_dd_abs": 280.9931,
+      "max_dd_pct": 5.2089,
+      "recovery_factor": 7.9343,
+      "win_rate": 42.6606,
+      "end_balance": 7229.4909
+    },
+    "oos": {
+      "trades": 62,
+      "net": 277.3032,
+      "gross_profit": 1517.4024,
+      "gross_loss": 1240.0992,
+      "profit_factor": 1.2236,
+      "max_dd_abs": 330.1445,
+      "max_dd_pct": 6.0257,
+      "recovery_factor": 0.8399,
+      "win_rate": 40.3226,
+      "end_balance": 5277.3032
+    },
+    "oos_def": {
+      "trades": 67,
+      "net": 378.249,
+      "gross_profit": 1628.3469,
+      "gross_loss": 1250.0979,
+      "profit_factor": 1.3026,
+      "max_dd_abs": 370.5886,
+      "max_dd_pct": 6.6656,
+      "recovery_factor": 1.0207,
+      "win_rate": 43.2836,
+      "end_balance": 5378.249
+    }
+  },
+  {
+    "train": "2015-2017",
+    "test": "2018",
+    "params": {
+      "fast_period": 9,
+      "fast_mult": 1.949,
+      "slow_period": 13,
+      "slow_mult": 3.036,
+      "tp_rr": 6.0
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 202,
+      "net": 2645.6172,
+      "gross_profit": 6433.336,
+      "gross_loss": 3787.7187,
+      "profit_factor": 1.6985,
+      "max_dd_abs": 378.9234,
+      "max_dd_pct": 5.5724,
+      "recovery_factor": 6.9819,
+      "win_rate": 42.0792,
+      "end_balance": 7645.6172
+    },
+    "oos": {
+      "trades": 66,
+      "net": 394.6278,
+      "gross_profit": 1648.51,
+      "gross_loss": 1253.8822,
+      "profit_factor": 1.3147,
+      "max_dd_abs": 346.0949,
+      "max_dd_pct": 6.0792,
+      "recovery_factor": 1.1402,
+      "win_rate": 43.9394,
+      "end_balance": 5394.6278
+    },
+    "oos_def": {
+      "trades": 66,
+      "net": 446.3271,
+      "gross_profit": 1747.852,
+      "gross_loss": 1301.5249,
+      "profit_factor": 1.3429,
+      "max_dd_abs": 406.0954,
+      "max_dd_pct": 6.9389,
+      "recovery_factor": 1.0991,
+      "win_rate": 43.9394,
+      "end_balance": 5446.3271
+    }
+  },
+  {
+    "train": "2016-2018",
+    "test": "2019",
+    "params": {
+      "fast_period": 3,
+      "fast_mult": 0.747,
+      "slow_period": 8,
+      "slow_mult": 2.885,
+      "tp_rr": 1.013
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 206,
+      "net": 2295.1663,
+      "gross_profit": 5450.3534,
+      "gross_loss": 3155.1871,
+      "profit_factor": 1.7274,
+      "max_dd_abs": 179.5374,
+      "max_dd_pct": 2.9443,
+      "recovery_factor": 12.7838,
+      "win_rate": 56.7961,
+      "end_balance": 7295.1663
+    },
+    "oos": {
+      "trades": 76,
+      "net": -101.765,
+      "gross_profit": 1500.0344,
+      "gross_loss": 1601.7994,
+      "profit_factor": 0.9365,
+      "max_dd_abs": 582.6578,
+      "max_dd_pct": 11.0495,
+      "recovery_factor": -0.1747,
+      "win_rate": 43.4211,
+      "end_balance": 4898.235
+    },
+    "oos_def": {
+      "trades": 74,
+      "net": 104.6867,
+      "gross_profit": 1686.6387,
+      "gross_loss": 1581.952,
+      "profit_factor": 1.0662,
+      "max_dd_abs": 470.4717,
+      "max_dd_pct": 8.7874,
+      "recovery_factor": 0.2225,
+      "win_rate": 37.8378,
+      "end_balance": 5104.6867
+    }
+  }
+]
