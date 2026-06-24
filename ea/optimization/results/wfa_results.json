@@ -1,0 +1,282 @@
+[
+  {
+    "train": "2010-2012",
+    "test": "2013",
+    "params": {
+      "tenkan": 37,
+      "kijun": 53,
+      "spanB": 160,
+      "sl_period": 15,
+      "sl_mult": 2.707,
+      "trail_period": 15,
+      "trail_mult": 3.404,
+      "require_color": 0,
+      "use_ichi_exit": 0
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 166,
+      "net": 1006.3887,
+      "gross_profit": 1996.9184,
+      "gross_loss": 990.5297,
+      "profit_factor": 2.016,
+      "max_dd_abs": 103.9751,
+      "max_dd_pct": 3.9249,
+      "recovery_factor": 9.6791,
+      "win_rate": 48.1928,
+      "end_balance": 3006.3887
+    },
+    "oos": {
+      "trades": 68,
+      "net": -13.3865,
+      "gross_profit": 654.0302,
+      "gross_loss": 667.4167,
+      "profit_factor": 0.9799,
+      "max_dd_abs": 268.03,
+      "max_dd_pct": 12.6874,
+      "recovery_factor": -0.0499,
+      "win_rate": 32.3529,
+      "end_balance": 1986.6135
+    }
+  },
+  {
+    "train": "2011-2013",
+    "test": "2014",
+    "params": {
+      "tenkan": 36,
+      "kijun": 62,
+      "spanB": 148,
+      "sl_period": 7,
+      "sl_mult": 1.0,
+      "trail_period": 30,
+      "trail_mult": 5.147,
+      "require_color": 0,
+      "use_ichi_exit": 1
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 162,
+      "net": 2682.6606,
+      "gross_profit": 4829.3892,
+      "gross_loss": 2146.7286,
+      "profit_factor": 2.2497,
+      "max_dd_abs": 281.4244,
+      "max_dd_pct": 11.2766,
+      "recovery_factor": 9.5324,
+      "win_rate": 25.9259,
+      "end_balance": 4682.6606
+    },
+    "oos": {
+      "trades": 55,
+      "net": 488.1876,
+      "gross_profit": 1179.7176,
+      "gross_loss": 691.53,
+      "profit_factor": 1.706,
+      "max_dd_abs": 260.1972,
+      "max_dd_pct": 11.6103,
+      "recovery_factor": 1.8762,
+      "win_rate": 27.2727,
+      "end_balance": 2488.1876
+    }
+  },
+  {
+    "train": "2012-2014",
+    "test": "2015",
+    "params": {
+      "tenkan": 33,
+      "kijun": 60,
+      "spanB": 132,
+      "sl_period": 20,
+      "sl_mult": 3.826,
+      "trail_period": 17,
+      "trail_mult": 1.5,
+      "require_color": 0,
+      "use_ichi_exit": 0
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 183,
+      "net": 351.9881,
+      "gross_profit": 829.5608,
+      "gross_loss": 477.5726,
+      "profit_factor": 1.737,
+      "max_dd_abs": 39.4583,
+      "max_dd_pct": 1.8808,
+      "recovery_factor": 8.9205,
+      "win_rate": 43.1694,
+      "end_balance": 2351.9881
+    },
+    "oos": {
+      "trades": 54,
+      "net": 51.8425,
+      "gross_profit": 203.5143,
+      "gross_loss": 151.6718,
+      "profit_factor": 1.3418,
+      "max_dd_abs": 80.8601,
+      "max_dd_pct": 4.0024,
+      "recovery_factor": 0.6411,
+      "win_rate": 35.1852,
+      "end_balance": 2051.8425
+    }
+  },
+  {
+    "train": "2013-2015",
+    "test": "2016",
+    "params": {
+      "tenkan": 35,
+      "kijun": 55,
+      "spanB": 56,
+      "sl_period": 13,
+      "sl_mult": 1.009,
+      "trail_period": 16,
+      "trail_mult": 1.5,
+      "require_color": 0,
+      "use_ichi_exit": 1
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 260,
+      "net": 2783.0437,
+      "gross_profit": 5183.9524,
+      "gross_loss": 2400.9087,
+      "profit_factor": 2.1592,
+      "max_dd_abs": 171.242,
+      "max_dd_pct": 7.4366,
+      "recovery_factor": 16.2521,
+      "win_rate": 36.1538,
+      "end_balance": 4783.0437
+    },
+    "oos": {
+      "trades": 78,
+      "net": -641.8584,
+      "gross_profit": 405.037,
+      "gross_loss": 1046.8954,
+      "profit_factor": 0.3869,
+      "max_dd_abs": 644.8126,
+      "max_dd_pct": 32.2406,
+      "recovery_factor": -0.9954,
+      "win_rate": 15.3846,
+      "end_balance": 1358.1416
+    }
+  },
+  {
+    "train": "2014-2016",
+    "test": "2017",
+    "params": {
+      "tenkan": 21,
+      "kijun": 50,
+      "spanB": 87,
+      "sl_period": 7,
+      "sl_mult": 1.764,
+      "trail_period": 26,
+      "trail_mult": 1.848,
+      "require_color": 0,
+      "use_ichi_exit": 1
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 197,
+      "net": 1276.5748,
+      "gross_profit": 2719.7297,
+      "gross_loss": 1443.1549,
+      "profit_factor": 1.8846,
+      "max_dd_abs": 125.9154,
+      "max_dd_pct": 4.768,
+      "recovery_factor": 10.1384,
+      "win_rate": 42.132,
+      "end_balance": 3276.5748
+    },
+    "oos": {
+      "trades": 56,
+      "net": 2.6517,
+      "gross_profit": 448.8716,
+      "gross_loss": 446.2199,
+      "profit_factor": 1.0059,
+      "max_dd_abs": 172.2165,
+      "max_dd_pct": 8.3266,
+      "recovery_factor": 0.0154,
+      "win_rate": 33.9286,
+      "end_balance": 2002.6517
+    }
+  },
+  {
+    "train": "2015-2017",
+    "test": "2018",
+    "params": {
+      "tenkan": 24,
+      "kijun": 43,
+      "spanB": 81,
+      "sl_period": 23,
+      "sl_mult": 4.0,
+      "trail_period": 30,
+      "trail_mult": 1.5,
+      "require_color": 1,
+      "use_ichi_exit": 1
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 160,
+      "net": 451.1206,
+      "gross_profit": 822.4007,
+      "gross_loss": 371.2801,
+      "profit_factor": 2.215,
+      "max_dd_abs": 38.3014,
+      "max_dd_pct": 1.8174,
+      "recovery_factor": 11.7782,
+      "win_rate": 46.25,
+      "end_balance": 2451.1206
+    },
+    "oos": {
+      "trades": 48,
+      "net": -30.1813,
+      "gross_profit": 121.5853,
+      "gross_loss": 151.7665,
+      "profit_factor": 0.8011,
+      "max_dd_abs": 61.8447,
+      "max_dd_pct": 3.0513,
+      "recovery_factor": -0.488,
+      "win_rate": 37.5,
+      "end_balance": 1969.8187
+    }
+  },
+  {
+    "train": "2016-2018",
+    "test": "2019",
+    "params": {
+      "tenkan": 8,
+      "kijun": 31,
+      "spanB": 154,
+      "sl_period": 25,
+      "sl_mult": 3.816,
+      "trail_period": 17,
+      "trail_mult": 1.5,
+      "require_color": 0,
+      "use_ichi_exit": 0
+    },
+    "is_feasible": true,
+    "is": {
+      "trades": 227,
+      "net": 517.1068,
+      "gross_profit": 1127.069,
+      "gross_loss": 609.9622,
+      "profit_factor": 1.8478,
+      "max_dd_abs": 41.9354,
+      "max_dd_pct": 2.049,
+      "recovery_factor": 12.331,
+      "win_rate": 45.3744,
+      "end_balance": 2517.1068
+    },
+    "oos": {
+      "trades": 77,
+      "net": -48.6345,
+      "gross_profit": 224.7919,
+      "gross_loss": 273.4264,
+      "profit_factor": 0.8221,
+      "max_dd_abs": 125.9906,
+      "max_dd_pct": 6.1832,
+      "recovery_factor": -0.386,
+      "win_rate": 32.4675,
+      "end_balance": 1951.3655
+    }
+  }
+]
