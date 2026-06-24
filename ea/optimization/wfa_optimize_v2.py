@@ -189,7 +189,13 @@ def main():
     results = []
     oos_opt, oos_def = [], []
 
-    for (tr0, tr1), te in WINDOWS:
+    # Tu sinh cac cua so WFA 3:1 tu nhung nam co san (train 3 nam / test 1 nam ke tiep)
+    years = sorted(yb)
+    windows = [((te - 3, te - 1), te) for te in years
+               if all((te - k) in yb for k in (1, 2, 3))]
+    print(f"  WFA: {len(windows)} cua so (test {windows[0][1]}..{windows[-1][1]})")
+
+    for (tr0, tr1), te in windows:
         t0, t1 = yb[tr0][0], yb[tr1][1]
         te0, te1 = yb[te][0], yb[te][1]
         print(f"\n=== Train {tr0}-{tr1} | Test {te} ===")
@@ -256,13 +262,14 @@ def save_outputs(results, oos_opt, oos_def, outdir):
     with open(os.path.join(outdir, "wfa_summary.csv"), "w") as f:
         f.write("\n".join(lines))
 
+    span = f"{results[0]['test']}-{results[-1]['test']}" if results else "?"
     write_report(results, s_opt, s_def, outdir)
     try:
-        plot_equity(opt, deff, outdir)
+        plot_equity(opt, deff, outdir, span)
     except Exception as e:
         print("Loi ve bieu do:", e)
 
-    print("\n----- OOS TONG HOP (ghep 2013-2019) -----")
+    print(f"\n----- OOS TONG HOP (ghep {len(results)} nam test {span}) -----")
     print(f"  TOI UU : net=${s_opt['net']:.1f} PF={s_opt['profit_factor']:.2f} "
           f"DD={s_opt['max_dd_pct']:.1f}% RF={s_opt['recovery_factor']:.2f} "
           f"trades={s_opt['trades']} WR={s_opt['win_rate']:.1f}%")
@@ -301,7 +308,8 @@ def write_report(results, s_opt, s_def, outdir):
                 f"- Max Drawdown: ${s['max_dd_abs']:.2f} ({s['max_dd_pct']:.1f}%)",
                 f"- Recovery Factor: {s['recovery_factor']:.2f}"]
 
-    L.append("\n## 2. OOS tong hop ghep 7 nam test (2013-2019)")
+    span = f"{results[0]['test']}-{results[-1]['test']}" if results else "?"
+    L.append(f"\n## 2. OOS tong hop ghep {len(results)} nam test ({span})")
     L += block("A) Bo tham so TOI UU theo tung luot (Walk-Forward thuc su)", s_opt)
     L += block("B) Bo tham so DEFAULT cua EA (fast5/0.5, slow10/3, TP=3R) — khong toi uu", s_def)
 
@@ -321,9 +329,9 @@ def write_report(results, s_opt, s_def, outdir):
     L.append(f"- Profit Factor: IS trung binh = {np.mean(is_pf):.2f} → OOS ghep = {fmt(s_opt['profit_factor'])} "
              "(suy giam NHE — binh thuong, khong phai overfit nang).")
     L.append(f"- **Recovery Factor OOS ghep = {s_opt['recovery_factor']:.2f}** "
-             f"(gan voi default-EA {s_def['recovery_factor']:.2f}) → chien luoc BEN VUNG, it nhay theo tham so. "
-             "Khac han v1 (TK cross) bi sup do OOS.")
-    L.append("- *Luu y so sanh:* IS RF do tren 3 nam, con OOS RF tung nam do tren 1 nam nen "
+             f"(default-EA {s_def['recovery_factor']:.2f}) — toi uu ≈ default ⟹ ket qua **it phu thuoc tham so** "
+             "(edge nam o ban than chien luoc, khong phai o viec tinh chinh).")
+    L.append("- *Luu y so sanh:* IS RF do tren 3 nam, OOS RF tung nam do tren 1 nam nen "
              "khong so truc tiep theo gia tri tuyet doi; dung **PF** va **RF ghep** de danh gia cong bang.")
     L.append("\n## 5. Do on dinh tham so giua cac luot\n")
     L.append("| Tham so | Min | Max | Nhan xet |")
@@ -339,16 +347,34 @@ def write_report(results, s_opt, s_def, outdir):
     better = s_opt["net"] > s_def["net"]
     L.append(f"- OOS: toi uu net ${s_opt['net']:.0f} vs default-EA net ${s_def['net']:.0f} "
              f"→ toi uu hoa {'CÓ' if better else 'KHÔNG'} cai thien so voi default.")
-    ok = (s_opt["net"] > 0 and (not np.isfinite(s_opt["profit_factor"]) or s_opt["profit_factor"] >= 1.1)
-          and n_win >= 5)
-    L.append("- ✅ Co edge OOS kha quan." if ok else
-             "- ❌ Chua co edge ben vung ngoai mau (xem so lieu OOS o muc 2).")
+
+    # phan tich theo che do thi truong (neu co du lieu sau 2019)
+    late = [r for r in results if int(r["test"]) >= 2020]
+    if late:
+        e_net = sum(r["oos"]["net"] for r in results if int(r["test"]) <= 2019)
+        l_net = sum(r["oos"]["net"] for r in late)
+        ld_net = sum(r["oos_def"]["net"] for r in late)
+        l_win = sum(1 for r in late if r["oos"]["net"] > 0)
+        L.append(f"- **Edge bien thien manh theo thoi gian:** giai doan 2013-2019 net ≈ ${e_net:.0f} (rat tot), "
+                 f"nhung 2020-{results[-1]['test']} net ≈ ${l_net:.0f} (toi uu) / ${ld_net:.0f} (default), "
+                 f"chi {l_win}/{len(late)} nam co lai → chien luoc **suy yeu ro o che do thi truong gan day** "
+                 "(dac biet chuoi thua 2021-2024).")
+        L.append(f"- Max Drawdown that tren toan ky = **{s_opt['max_dd_pct']:.0f}%** — cao hon nhieu so voi "
+                 "ky vong tu rieng 2013-2019 (~10%); day la rui ro that khi chay live qua nhieu che do.")
+
+    frac_win = n_win / len(results) if results else 0
+    pf = s_opt["profit_factor"]
+    ok = (s_opt["net"] > 0 and (not np.isfinite(pf) or pf >= 1.15)
+          and s_opt["recovery_factor"] >= 1.5 and frac_win >= 0.6)
+    L.append("- ✅ Co edge OOS kha quan tren toan ky." if ok else
+             "- ⚠️ **Net duong tren toan ky nhung KHONG ben vung**: PF≈1.1, RF≈1.0, drawdown lon, "
+             "nhieu nam thua → chua du tin cay de chay live neu khong them bo loc che do thi truong.")
     L.append("- Luu y: ket qua tinh tren spread lich su that, drawdown mark-to-market, khong nhin truoc.")
     with open(os.path.join(outdir, "REPORT.md"), "w") as f:
         f.write("\n".join(L))
 
 
-def plot_equity(opt, deff, outdir):
+def plot_equity(opt, deff, outdir, span="OOS"):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -358,7 +384,7 @@ def plot_equity(opt, deff, outdir):
     ax.plot(eo, lw=1.4, color="#1565C0", label=f"Toi uu WFA (net ${opt.sum():.0f})")
     ax.plot(ed, lw=1.4, color="#E65100", label=f"Default EA (net ${deff.sum():.0f})")
     ax.axhline(START_BALANCE, color="#BDBDBD", lw=0.7)
-    ax.set_title("Equity Out-of-Sample (2013-2019) — Toi uu vs Default EA")
+    ax.set_title(f"Equity Out-of-Sample ({span}) — Toi uu vs Default EA")
     ax.set_xlabel("So lenh (theo thu tu)"); ax.set_ylabel("Balance ($)")
     ax.legend(loc="best"); ax.grid(alpha=0.3)
     fig.tight_layout()

@@ -48,11 +48,29 @@ xem việc tối ưu có thật sự cải thiện so với cấu hình gốc ha
 - Tối ưu cải thiện ~33% net so với default, nhưng default **tự thân đã tốt** ⟹ edge nằm ở
   **chiến lược**, ít phụ thuộc tham số (rủi ro overfitting thấp).
 
+## ⚠️ Cập nhật quan trọng: chạy mở rộng trên dữ liệu 2010–2026
+
+Khi chạy lại trên bộ dữ liệu dài hơn (EURUSD H1 tới 2026-06, WFA tự sinh **14 cửa sổ**,
+OOS 2013–2026 — xem `results_v2_2026/`), bức tranh đẹp của riêng 2013–2019 **không còn giữ được**:
+
+| OOS ghép | Net | PF | MaxDD | RF | Số năm có lãi |
+|---|---|---|---|---|---|
+| **2013–2019** (7 năm) | +52.7% | 1.22 | ~10% | **4.43** | 6/7 |
+| **2013–2026** (14 năm) | +39.5% | 1.09 | **24%** | **1.01** | 8/14 |
+
+- Chiến lược **rất tốt 2013–2019** (net ≈ +$2760) nhưng **suy yếu rõ 2020–2026** (net ≈ −$787,
+  chỉ 2/7 năm lãi), với chuỗi thua kéo dài **2021–2024** và drawdown thật ~24%.
+- Tối ưu hóa **không** vượt được default ngay cả trên toàn kỳ ⟹ edge nằm ở chiến lược, và edge đó
+  **đang phụ thuộc chế độ thị trường**. Đây là lý do *bắt buộc* phải test trên dữ liệu dài/mới.
+
 ## Chạy
 
 ```bash
 cd ea/optimization
-python3 wfa_optimize_v2.py --csv /đường/dẫn/EU.csv --pop 80 --gen 60 --seed 42
+# 2010-2019:
+python3 wfa_optimize_v2.py --csv EU_2010_2019.csv --pop 80 --gen 60 --seed 42 --outdir results_v2
+# 2010-2026 (tu sinh cua so toi het du lieu):
+python3 wfa_optimize_v2.py --csv EU_2010_2026.csv --pop 80 --gen 60 --seed 42 --outdir results_v2_2026
 ```
 
 Xuất ra `results_v2/`: `REPORT.md`, `wfa_summary.csv`, `wfa_results.json`, `oos_equity_v2.png`.
