@@ -1,0 +1,457 @@
+[
+  {
+    "fold": 1,
+    "train": "2010-2012",
+    "test": "2013",
+    "feasible": true,
+    "params": {
+      "sl_atr_period": 11,
+      "sl_mult": 2.75,
+      "be_trigger": 1.25,
+      "tp1_mult": 1.75,
+      "partial_frac": 0.25,
+      "trail_period": 10,
+      "trail_mult": 1.5
+    },
+    "is": {
+      "trades": 194,
+      "net": 516.2051,
+      "profit_factor": 1.712,
+      "max_dd_abs": 61.4121,
+      "max_dd_pct": 2.9891,
+      "sharpe": 1.6102,
+      "win_rate": 48.4536,
+      "expectancy": 0.133
+    },
+    "oos": {
+      "trades": 91,
+      "net": 52.3907,
+      "profit_factor": 1.1069,
+      "max_dd_abs": 210.5172,
+      "max_dd_pct": 9.8686,
+      "sharpe": 0.3052,
+      "win_rate": 34.0659,
+      "expectancy": 0.0288
+    }
+  },
+  {
+    "fold": 2,
+    "train": "2011-2013",
+    "test": "2014",
+    "feasible": true,
+    "params": {
+      "sl_atr_period": 20,
+      "sl_mult": 2.75,
+      "be_trigger": 1.5,
+      "tp1_mult": 2.75,
+      "partial_frac": 0.0,
+      "trail_period": 10,
+      "trail_mult": 1.5
+    },
+    "is": {
+      "trades": 236,
+      "net": 552.4238,
+      "profit_factor": 1.5261,
+      "max_dd_abs": 208.5735,
+      "max_dd_pct": 8.0631,
+      "sharpe": 1.1637,
+      "win_rate": 43.2203,
+      "expectancy": 0.117
+    },
+    "oos": {
+      "trades": 73,
+      "net": 120.6416,
+      "profit_factor": 1.2738,
+      "max_dd_abs": 121.2224,
+      "max_dd_pct": 5.9287,
+      "sharpe": 0.7397,
+      "win_rate": 42.4658,
+      "expectancy": 0.0826
+    }
+  },
+  {
+    "fold": 3,
+    "train": "2012-2014",
+    "test": "2015",
+    "feasible": true,
+    "params": {
+      "sl_atr_period": 20,
+      "sl_mult": 2.25,
+      "be_trigger": 1.0,
+      "tp1_mult": 2.0,
+      "partial_frac": 0.0,
+      "trail_period": 8,
+      "trail_mult": 1.25
+    },
+    "is": {
+      "trades": 230,
+      "net": 600.3576,
+      "profit_factor": 1.4643,
+      "max_dd_abs": 217.3976,
+      "max_dd_pct": 9.2115,
+      "sharpe": 1.0806,
+      "win_rate": 42.6087,
+      "expectancy": 0.1305
+    },
+    "oos": {
+      "trades": 74,
+      "net": 107.627,
+      "profit_factor": 1.2706,
+      "max_dd_abs": 160.1722,
+      "max_dd_pct": 7.3396,
+      "sharpe": 0.6294,
+      "win_rate": 40.5405,
+      "expectancy": 0.0727
+    }
+  },
+  {
+    "fold": 4,
+    "train": "2013-2015",
+    "test": "2016",
+    "feasible": true,
+    "params": {
+      "sl_atr_period": 14,
+      "sl_mult": 2.75,
+      "be_trigger": 0.5,
+      "tp1_mult": 3.0,
+      "partial_frac": 0.0,
+      "trail_period": 15,
+      "trail_mult": 3.5
+    },
+    "is": {
+      "trades": 235,
+      "net": 1099.994,
+      "profit_factor": 1.6889,
+      "max_dd_abs": 142.1449,
+      "max_dd_pct": 5.9737,
+      "sharpe": 1.4103,
+      "win_rate": 34.8936,
+      "expectancy": 0.234
+    },
+    "oos": {
+      "trades": 69,
+      "net": 92.7343,
+      "profit_factor": 1.2317,
+      "max_dd_abs": 162.1072,
+      "max_dd_pct": 7.5561,
+      "sharpe": 0.5897,
+      "win_rate": 33.3333,
+      "expectancy": 0.0672
+    }
+  },
+  {
+    "fold": 5,
+    "train": "2014-2016",
+    "test": "2017",
+    "feasible": true,
+    "params": {
+      "sl_atr_period": 18,
+      "sl_mult": 1.75,
+      "be_trigger": 0.75,
+      "tp1_mult": 2.5,
+      "partial_frac": 0.75,
+      "trail_period": 26,
+      "trail_mult": 1.75
+    },
+    "is": {
+      "trades": 216,
+      "net": 1224.9974,
+      "profit_factor": 1.77,
+      "max_dd_abs": 154.0719,
+      "max_dd_pct": 7.2186,
+      "sharpe": 1.8835,
+      "win_rate": 42.1296,
+      "expectancy": 0.2836
+    },
+    "oos": {
+      "trades": 67,
+      "net": 87.9435,
+      "profit_factor": 1.1679,
+      "max_dd_abs": 134.0209,
+      "max_dd_pct": 6.2945,
+      "sharpe": 0.4769,
+      "win_rate": 43.2836,
+      "expectancy": 0.0656
+    }
+  },
+  {
+    "fold": 6,
+    "train": "2015-2017",
+    "test": "2018",
+    "feasible": true,
+    "params": {
+      "sl_atr_period": 20,
+      "sl_mult": 1.25,
+      "be_trigger": 2.0,
+      "tp1_mult": 2.75,
+      "partial_frac": 0.75,
+      "trail_period": 9,
+      "trail_mult": 3.25
+    },
+    "is": {
+      "trades": 209,
+      "net": 1479.0636,
+      "profit_factor": 1.6244,
+      "max_dd_abs": 194.1477,
+      "max_dd_pct": 6.9124,
+      "sharpe": 1.7287,
+      "win_rate": 37.799,
+      "expectancy": 0.3538
+    },
+    "oos": {
+      "trades": 66,
+      "net": 438.9178,
+      "profit_factor": 1.58,
+      "max_dd_abs": 148.7236,
+      "max_dd_pct": 6.098,
+      "sharpe": 1.6404,
+      "win_rate": 40.9091,
+      "expectancy": 0.3325
+    }
+  },
+  {
+    "fold": 7,
+    "train": "2016-2018",
+    "test": "2019",
+    "feasible": true,
+    "params": {
+      "sl_atr_period": 13,
+      "sl_mult": 2.5,
+      "be_trigger": 1.0,
+      "tp1_mult": 1.0,
+      "partial_frac": 0.75,
+      "trail_period": 9,
+      "trail_mult": 1.75
+    },
+    "is": {
+      "trades": 202,
+      "net": 546.4224,
+      "profit_factor": 1.5393,
+      "max_dd_abs": 73.8864,
+      "max_dd_pct": 3.0922,
+      "sharpe": 1.5721,
+      "win_rate": 49.0099,
+      "expectancy": 0.1353
+    },
+    "oos": {
+      "trades": 74,
+      "net": -14.1958,
+      "profit_factor": 0.9682,
+      "max_dd_abs": 102.5687,
+      "max_dd_pct": 5.031,
+      "sharpe": -0.1192,
+      "win_rate": 39.1892,
+      "expectancy": -0.0096
+    }
+  },
+  {
+    "fold": 8,
+    "train": "2017-2019",
+    "test": "2020",
+    "feasible": true,
+    "params": {
+      "sl_atr_period": 20,
+      "sl_mult": 2.5,
+      "be_trigger": 2.0,
+      "tp1_mult": 1.5,
+      "partial_frac": 0.75,
+      "trail_period": 28,
+      "trail_mult": 2.25
+    },
+    "is": {
+      "trades": 207,
+      "net": 494.927,
+      "profit_factor": 1.3671,
+      "max_dd_abs": 119.8492,
+      "max_dd_pct": 4.9339,
+      "sharpe": 1.0969,
+      "win_rate": 41.5459,
+      "expectancy": 0.1195
+    },
+    "oos": {
+      "trades": 72,
+      "net": 45.8885,
+      "profit_factor": 1.0972,
+      "max_dd_abs": 122.4339,
+      "max_dd_pct": 5.7597,
+      "sharpe": 0.3279,
+      "win_rate": 40.2778,
+      "expectancy": 0.0319
+    }
+  },
+  {
+    "fold": 9,
+    "train": "2018-2020",
+    "test": "2021",
+    "feasible": false,
+    "params": {
+      "sl_atr_period": 18,
+      "sl_mult": 1.75,
+      "be_trigger": 1.0,
+      "tp1_mult": 2.5,
+      "partial_frac": 0.75,
+      "trail_period": 24,
+      "trail_mult": 3.25
+    },
+    "is": {
+      "trades": 211,
+      "net": 649.2809,
+      "profit_factor": 1.3139,
+      "max_dd_abs": 205.1065,
+      "max_dd_pct": 8.2806,
+      "sharpe": 0.9376,
+      "win_rate": 34.5972,
+      "expectancy": 0.1539
+    },
+    "oos": {
+      "trades": 72,
+      "net": -60.0183,
+      "profit_factor": 0.9246,
+      "max_dd_abs": 270.24,
+      "max_dd_pct": 12.3516,
+      "sharpe": -0.289,
+      "win_rate": 31.9444,
+      "expectancy": -0.0417
+    }
+  },
+  {
+    "fold": 10,
+    "train": "2019-2021",
+    "test": "2022",
+    "feasible": false,
+    "params": {
+      "sl_atr_period": 10,
+      "sl_mult": 2.5,
+      "be_trigger": 2.0,
+      "tp1_mult": 1.75,
+      "partial_frac": 0.75,
+      "trail_period": 28,
+      "trail_mult": 3.5
+    },
+    "is": {
+      "trades": 208,
+      "net": 288.6409,
+      "profit_factor": 1.1578,
+      "max_dd_abs": 178.579,
+      "max_dd_pct": 8.1649,
+      "sharpe": 0.5439,
+      "win_rate": 40.3846,
+      "expectancy": 0.0694
+    },
+    "oos": {
+      "trades": 83,
+      "net": -432.514,
+      "profit_factor": 0.505,
+      "max_dd_abs": 493.9208,
+      "max_dd_pct": 24.254,
+      "sharpe": -2.7922,
+      "win_rate": 22.8916,
+      "expectancy": -0.2606
+    }
+  },
+  {
+    "fold": 11,
+    "train": "2020-2022",
+    "test": "2023",
+    "feasible": false,
+    "params": {
+      "sl_atr_period": 14,
+      "sl_mult": 1.75,
+      "be_trigger": 0.75,
+      "tp1_mult": 1.0,
+      "partial_frac": 0.75,
+      "trail_period": 21,
+      "trail_mult": 1.0
+    },
+    "is": {
+      "trades": 230,
+      "net": -197.0682,
+      "profit_factor": 0.8582,
+      "max_dd_abs": 213.9489,
+      "max_dd_pct": 10.6167,
+      "sharpe": -0.5796,
+      "win_rate": 41.7391,
+      "expectancy": -0.0428
+    },
+    "oos": {
+      "trades": 67,
+      "net": -165.336,
+      "profit_factor": 0.6133,
+      "max_dd_abs": 213.5859,
+      "max_dd_pct": 10.492,
+      "sharpe": -1.7481,
+      "win_rate": 34.3284,
+      "expectancy": -0.1234
+    }
+  },
+  {
+    "fold": 12,
+    "train": "2021-2023",
+    "test": "2024",
+    "feasible": false,
+    "params": {
+      "sl_atr_period": 20,
+      "sl_mult": 3.25,
+      "be_trigger": 1.25,
+      "tp1_mult": 1.0,
+      "partial_frac": 0.75,
+      "trail_period": 30,
+      "trail_mult": 1.0
+    },
+    "is": {
+      "trades": 225,
+      "net": -170.0371,
+      "profit_factor": 0.7825,
+      "max_dd_abs": 193.7498,
+      "max_dd_pct": 9.6013,
+      "sharpe": -0.8352,
+      "win_rate": 36.8889,
+      "expectancy": -0.0378
+    },
+    "oos": {
+      "trades": 83,
+      "net": -3.5064,
+      "profit_factor": 0.988,
+      "max_dd_abs": 86.3889,
+      "max_dd_pct": 4.2004,
+      "sharpe": -0.0425,
+      "win_rate": 34.9398,
+      "expectancy": -0.0021
+    }
+  },
+  {
+    "fold": 13,
+    "train": "2022-2024",
+    "test": "2025-2026",
+    "feasible": false,
+    "params": {
+      "sl_atr_period": 11,
+      "sl_mult": 2.25,
+      "be_trigger": 0.5,
+      "tp1_mult": 1.5,
+      "partial_frac": 0.5,
+      "trail_period": 14,
+      "trail_mult": 1.5
+    },
+    "is": {
+      "trades": 235,
+      "net": -139.941,
+      "profit_factor": 0.8992,
+      "max_dd_abs": 285.8395,
+      "max_dd_pct": 13.9215,
+      "sharpe": -0.368,
+      "win_rate": 34.8936,
+      "expectancy": -0.0298
+    },
+    "oos": {
+      "trades": 100,
+      "net": 5.2811,
+      "profit_factor": 1.0086,
+      "max_dd_abs": 159.8227,
+      "max_dd_pct": 7.4537,
+      "sharpe": 0.027,
+      "win_rate": 36.0,
+      "expectancy": 0.0026
+    }
+  }
+]
