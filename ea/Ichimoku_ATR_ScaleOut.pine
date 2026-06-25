@@ -1,0 +1,111 @@
+//@version=6
+// =====================================================================
+//  Ichimoku + ATR ScaleOut  (Kronoss) — chi bao tin hieu cho TradingView
+//  Tuong ung EA Ichimoku_ATR_ScaleOut_EA.mq5:
+//   - Entry: Trail1 (fast ATR) cat Trail2 (slow ATR) kieu ceyhun + loc may Kumo.
+//   - Hien thi muc EXIT scale-out cho tin hieu moi nhat:
+//       SL (1R) = SLmult*ATR ; Breakeven @ +BE_R ; Partial TP @ +TP1_R ;
+//       (runner gong theo trailing — duong Trail2/ATR la tham chieu).
+//  Luu y: tin hieu xac nhan khi NEN DONG (alert dung "Once Per Bar Close").
+// =====================================================================
+indicator("Ichimoku + ATR ScaleOut (Kronoss)", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ----------------------------- Inputs --------------------------------
+grpI = "Ichimoku (loc may)"
+tenkanLen = input.int(9 , "Tenkan",  group=grpI)
+kijunLen  = input.int(26, "Kijun",   group=grpI)
+senkouBLen= input.int(52, "Senkou B",group=grpI)
+disp      = input.int(26, "Displacement", group=grpI)
+useCloud  = input.bool(true, "Bat loc may Kumo", group=grpI)
+
+grpE = "Entry: ATR cross (ceyhun)"
+fastP = input.int(5  , "Fast ATR period", group=grpE)
+fastM = input.float(0.5, "Fast ATR mult", group=grpE, step=0.1)
+slowP = input.int(10 , "Slow ATR period", group=grpE)
+slowM = input.float(3.0, "Slow ATR mult", group=grpE, step=0.1)
+
+grpX = "Exit scale-out (tham chieu)"
+slP    = input.int(14 , "SL ATR period", group=grpX)
+slM    = input.float(2.5, "SL mult (1R)", group=grpX, step=0.25)
+beR    = input.float(1.0, "Breakeven @ R", group=grpX, step=0.25)
+tp1R   = input.float(2.0, "Partial TP @ R", group=grpX, step=0.25)
+showLv = input.bool(true, "Hien thi muc SL/BE/TP1", group=grpX)
+
+// ----------------------------- Ichimoku ------------------------------
+donchian(len) => math.avg(ta.lowest(len), ta.highest(len))
+tenkan = donchian(tenkanLen)
+kijun  = donchian(kijunLen)
+spanA  = math.avg(tenkan, kijun)
+spanB  = donchian(senkouBLen)
+
+plot(tenkan, "Tenkan", color=color.new(#2962FF, 0))
+plot(kijun , "Kijun" , color=color.new(#B71C1C, 0))
+pA = plot(spanA, "Span A", color=color.new(color.green, 60), offset=disp - 1)
+pB = plot(spanB, "Span B", color=color.new(color.red  , 60), offset=disp - 1)
+fill(pA, pB, color = spanA > spanB ? color.new(color.green, 85) : color.new(color.red, 85), title="Kumo")
+
+// May "duoi" nen hien tai = span tinh tu 'disp' nen truoc
+cloudTop = math.max(spanA[disp], spanB[disp])
+cloudBot = math.min(spanA[disp], spanB[disp])
+aboveCloud = close > cloudTop
+belowCloud = close < cloudBot
+
+// --------------------- ATR Trailing Stop (ceyhun) --------------------
+trailStep(c, cp, prev, sl) =>
+    p = nz(prev, 0.0)
+    (c > p and cp > p) ? math.max(p, c - sl) : (c < p and cp < p) ? math.min(p, c + sl) : (c > p ? c - sl : c + sl)
+
+atrF = ta.atr(fastP)
+atrS = ta.atr(slowP)
+var float t1 = 0.0
+var float t2 = 0.0
+t1prev = t1
+t2prev = t2
+t1 := trailStep(close, close[1], t1, fastM * atrF)
+t2 := trailStep(close, close[1], t2, slowM * atrS)
+
+plot(t1, "Trail1 (fast)", color=color.new(color.orange, 0), linewidth=1)
+plot(t2, "Trail2 (slow)", color=color.new(color.teal  , 0), linewidth=2)
+
+// ----------------------------- Signals -------------------------------
+buySig  = (t1prev <= t2prev) and (t1 > t2)
+sellSig = (t1prev >= t2prev) and (t1 < t2)
+longSig  = buySig  and (not useCloud or aboveCloud)
+shortSig = sellSig and (not useCloud or belowCloud)
+
+plotshape(longSig , "BUY" , shape.labelup  , location.belowbar, color.new(color.green,0), text="BUY" , textcolor=color.white, size=size.small)
+plotshape(shortSig, "SELL", shape.labeldown, location.abovebar, color.new(color.red  ,0), text="SELL", textcolor=color.white, size=size.small)
+barcolor(t1 > t2 ? color.new(color.green, 70) : color.new(color.red, 70))
+
+// --------------------- Exit reference levels -------------------------
+slDist = slM * ta.atr(slP)
+var line  lnSL = na
+var line  lnBE = na
+var line  lnTP = na
+var label lbSL = na
+var label lbBE = na
+var label lbTP = na
+
+if showLv and (longSig or shortSig)
+    line.delete(lnSL)
+    line.delete(lnBE)
+    line.delete(lnTP)
+    label.delete(lbSL)
+    label.delete(lbBE)
+    label.delete(lbTP)
+    dir   = longSig ? 1 : -1
+    entry = close
+    slv   = entry - dir * slDist
+    bev   = entry + dir * beR  * slDist
+    tpv   = entry + dir * tp1R * slDist
+    x2    = bar_index + 18
+    lnSL := line.new(bar_index, slv, x2, slv, color=color.red,   style=line.style_dashed, width=1)
+    lnBE := line.new(bar_index, bev, x2, bev, color=color.gray,  style=line.style_dotted, width=1)
+    lnTP := line.new(bar_index, tpv, x2, tpv, color=color.green, style=line.style_dashed, width=1)
+    lbSL := label.new(x2, slv, "SL -1R", style=label.style_label_left, color=color.new(color.red,80),   textcolor=color.red,   size=size.tiny)
+    lbBE := label.new(x2, bev, "BE +"+str.tostring(beR)+"R",  style=label.style_label_left, color=color.new(color.gray,80),  textcolor=color.gray,  size=size.tiny)
+    lbTP := label.new(x2, tpv, "TP1 +"+str.tostring(tp1R)+"R", style=label.style_label_left, color=color.new(color.green,80), textcolor=color.green, size=size.tiny)
+
+// ----------------------------- Alerts --------------------------------
+alertcondition(longSig , "BUY signal",  "Ichi+ATR ScaleOut: BUY {{ticker}} @ {{close}}")
+alertcondition(shortSig, "SELL signal", "Ichi+ATR ScaleOut: SELL {{ticker}} @ {{close}}")
